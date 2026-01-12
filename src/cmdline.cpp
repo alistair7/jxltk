@@ -32,9 +32,10 @@ enum HelpSection : uint32_t {
   Split = 2,
   Gen =   4,
   Icc =   8,
+  AddSubtract = 16,
 
   MergeSplitGen =   7,
-  All =   15,
+  All =   31,
 };
 
 struct CommandLineOption {
@@ -54,13 +55,15 @@ constexpr CommandLineOption commandLineOptions[] = {
    "Less console output - use twice to see only errors, thrice for silence."},
   {"merge-config", 'M', HelpSection::Merge, "FILE",
     "Path to a JSON merge config file to read." },
-  {"coalesce", 'c', HelpSection::Split, nullptr,
-   "Flatten layers and output only full frames."},
+  {"coalesce", 'c', HelpSection::Split|HelpSection::AddSubtract, nullptr,
+   "Flatten layers and decode only full frames."},
   {"config-only", 'C', HelpSection::Split, nullptr,
    "Just generate the JSON merge config on stdout and don't write any files."},
   {"distance", 'd', HelpSection::MergeSplitGen, "FLOAT",
    "Butteraugli distance for encoded files. Default is 0 (lossless)." },
-  {"effort", 'e', HelpSection::MergeSplitGen, "1-" JXLTK_ITOA(JXLTK_MAX_EFFORT),
+  {"effort", 'e',
+   HelpSection::Merge|HelpSection::Split|HelpSection::Gen|HelpSection::AddSubtract,
+   "1-" JXLTK_ITOA(JXLTK_MAX_EFFORT),
    "Encoding effort.  Default is whatever libjxl decides." },
   {"compress-boxes", '\0', HelpSection::Merge|HelpSection::Gen, "0|1",
    "Globally disable (0) or enable (1) Brotli compression of metadata boxes." },
@@ -179,6 +182,20 @@ static void printHelp(HelpSection sec) {
             "  Extract (or synthesize) the ICC profile of a JXL.  The output\n"
             "  name can be omitted or \"-\" to write the ICC to stdout.\n\n";
   }
+  if ((sec & HelpSection::AddSubtract)) {
+    cerr << "\nADD / SUBTRACT MODES\n\n"
+            "\tjxltk add [opts] input1.jxl input2.jxl output.jxl\n\n"
+            "  Add input2.jxl to input1.jxl and write the result to output.jxl.\n\n"
+            "\tjxltk subtract input1.jxl input2.jxl output.jxl\n\n"
+            "  Subtract input2.jxl from input1.jxl and write the result to output.jxl."
+            "\n\n"
+            "  Add or subtract images sample-wise across all channels. Inputs must have\n"
+            "  matching dimensions and channel configuration. The result is always\n"
+            "  encoded losslessly. In case of multi-frame inputs, only the first\n"
+            "  coalesced frame is considered.\n\n"
+            "  These operations can easily produce samples outside of [0,1] - these\n"
+            "  will be stored correctly, but most viewers will clamp them.\n\n";
+  }
 }
 
 /**
@@ -270,6 +287,8 @@ CmdlineOpts parseArgs(int argc, char** argv) {
       sec = HelpSection::Gen;
     } else if (opts.mode == "icc") {
       sec = HelpSection::Icc;
+    } else if (opts.mode == "add" || opts.mode == "subtract") {
+      sec = HelpSection::AddSubtract;
     } else  {
       if (opts.mode != "-h" && opts.mode != "--help") {
         JXLTK_ERROR("Invalid mode %s.", shellQuote(opts.mode, true).c_str());
@@ -540,6 +559,21 @@ CmdlineOpts parseArgs(int argc, char** argv) {
     if (opts.positional.size() > 2) {
       JXLTK_ERROR("%s mode requires at most 2 arguments.", opts.mode.c_str());
       exit(EXIT_FAILURE);
+    }
+  } else if (opts.mode == "subtract" || opts.mode == "add") {
+    if (opts.positional.size() != 3) {
+      JXLTK_ERROR("%s mode requires 3 arguments.", opts.mode.c_str());
+      exit(EXIT_FAILURE);
+    }
+    if (opts.positional[0] == "-" || opts.positional[1] == "-") {
+      if (opts.positional[0] == "-" && opts.positional[1] == "-") {
+        JXLTK_ERROR("Can't read both inputs from stdin.");
+        exit(EXIT_FAILURE);
+      }
+      usedStdin = true;
+    }
+    if (opts.positional[2] != "-") {
+      confirmOverwrite(opts.positional[2], usedStdin, false);
     }
   }
 

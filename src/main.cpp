@@ -18,7 +18,10 @@
 
 #include "../contrib/jxlazy/include/jxlazy/decoder.h"
 
+#include "add.h"
 #include "cmdline.h"
+#include "common.h"
+#include "enums.h"
 #include "log.h"
 #include "merge.h"
 #include "mergeconfig.h"
@@ -140,6 +143,32 @@ int main_(int argc, char** argv) {
           !opts.configOnly,
           opts.configOnly ? "-" : "merge.json", !opts.useMilliseconds,
           opts.fullConfig);
+    return EXIT_SUCCESS;
+  }
+
+  if (opts.mode == "subtract" || opts.mode == "add") {
+    uint32_t decoderFlags = opts.coalesce ? 0 :
+                                static_cast<uint32_t>(jxlazy::DecoderFlag::NoCoalesce);
+    jxlazy::Decoder leftImage(opts.numThreads);
+    if (opts.positional[0] == "-") {
+      leftImage.openStream(std::cin, decoderFlags);
+    } else {
+      leftImage.openFile(opts.positional[0].c_str(), decoderFlags);
+    }
+    jxlazy::Decoder rightImage(opts.numThreads);
+    if (opts.positional[1] == "-") {
+      rightImage.openStream(std::cin, decoderFlags);
+    } else {
+      rightImage.openFile(opts.positional[1].c_str(), decoderFlags);
+    }
+    std::ostream* outfile = &std::cout;
+    std::ofstream loutfile;
+    if (opts.positional[2] != "-") {
+      loutfile.open(opts.positional[2].c_str(), std::ios::binary);
+      outfile = &loutfile;
+    }
+    addOrSubtract(leftImage, rightImage, opts.mode == "add", *outfile,
+                  opts.overrideFrameConfig, opts.numThreads);
     return EXIT_SUCCESS;
   }
 

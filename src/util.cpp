@@ -48,6 +48,13 @@ vector<std::string_view> splitString(const string& str, char at, int maxsplit /*
   return parts;
 }
 
+int dataTypeRank(JxlDataType t) {
+  return t == JXL_TYPE_UINT8 ? 10 :
+         t == JXL_TYPE_UINT16 ? 20 :
+         t == JXL_TYPE_FLOAT16 ? 30 :
+         t == JXL_TYPE_FLOAT ? 40 : 0;
+}
+
 void loadFile(istream& in, vector<uint8_t>* data, size_t filesize /*=0*/) {
   data->clear();
 

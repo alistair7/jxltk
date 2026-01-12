@@ -31,13 +31,6 @@ namespace jxltk {
 
 namespace {
 
-int dataTypeRank(JxlDataType t) {
-  return t == JXL_TYPE_UINT8 ? 10 :
-         t == JXL_TYPE_UINT16 ? 20 :
-         t == JXL_TYPE_FLOAT16 ? 30 :
-         t == JXL_TYPE_FLOAT ? 40 : 0;
-}
-
 ColorProfile getColorProfile(jxlazy::Decoder& dec) {
   ColorProfile color;
   JxlColorEncoding encColorTemp;
@@ -467,7 +460,7 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
   }
 
   std::unique_ptr<uint8_t[]> buffer =
-      JXLTK_MAKE_UNIQUE_FOR_OVERWRITE<uint8_t[]>(kBufferSize);
+      JXLTK_MAKE_UNIQUE_FOR_OVERWRITE<uint8_t[]>(kDefaultIOBufferSize);
 
   // Write boxes from mergeCfg
   JXLTK_TRACE("Writing %zu boxes from mergeCfg.", mergeCfg.boxes.size());
@@ -490,7 +483,7 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
                compress ? "'brob'/" : "",
                shellQuote(simplifyString(*boxCfg.type), true).c_str());
     writeBox(enc, boxCfg.type->data(), boxContent.data(), boxContent.size(),
-             compress, nextBox == totalBoxes - 1, buffer.get(), kBufferSize, fout);
+             compress, nextBox == totalBoxes - 1, buffer.get(), kDefaultIOBufferSize, fout);
     ++nextBox;
   }
   // Write boxes copied from input JXLs
@@ -513,7 +506,7 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
                  shellQuote(simplifyString(std::string_view(boxToCopy.second.type, 4)),
                             true).c_str());
       writeBox(enc, boxToCopy.second.type, boxContent.data(), boxContent.size(),
-               compress, nextBox == totalBoxes - 1, buffer.get(), kBufferSize, fout);
+               compress, nextBox == totalBoxes - 1, buffer.get(), kDefaultIOBufferSize, fout);
       ++nextBox;
     }
   }
@@ -543,7 +536,7 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
       JxlEncoderCloseFrames(enc);
     }
 
-    JxlEncoderStatus st = encodeUntilSuccess(enc, buffer.get(), kBufferSize, fout);
+    JxlEncoderStatus st = encodeUntilSuccess(enc, buffer.get(), kDefaultIOBufferSize, fout);
     if (st != JXL_ENC_SUCCESS) {
       throw JxltkError("%s: Unexpected encoder status while writing frame %zu: %s",
                        __func__, frameIdx, encoderStatusName(st));

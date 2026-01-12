@@ -16,8 +16,8 @@ add_subdirectory(contrib/jxlazy EXCLUDE_FROM_ALL)
 # EXCLUDE_FROM_ALL prevents jxlazy's .a and .h files from being installed with jxltk
 # - may cause issues on Windows (https://gitlab.kitware.com/cmake/cmake/-/issues/18048)?
 
-add_executable(jxltk src/main.cpp src/cmdline.cpp src/color.cpp src/common.cpp src/pixmap.cpp src/merge.cpp src/mergeconfig.cpp src/enums.cpp src/except.cpp src/split.cpp src/util.cpp src/log.cpp
-                                  src/cmdline.h   src/color.h   src/common.h   src/pixmap.h   src/merge.h   src/mergeconfig.h   src/enums.h   src/except.h   src/split.h   src/util.h   src/log.h
+add_executable(jxltk src/main.cpp src/add.cpp src/cmdline.cpp src/color.cpp src/common.cpp src/pixmap.cpp src/merge.cpp src/mergeconfig.cpp src/enums.cpp src/except.cpp src/split.cpp src/util.cpp src/log.cpp
+                                  src/add.h   src/cmdline.h   src/color.h   src/common.h   src/pixmap.h   src/merge.h   src/mergeconfig.h   src/enums.h   src/except.h   src/split.h   src/util.h   src/log.h
                      contrib/nlohmann/json.hpp contrib/optparse/optparse.h)
 
 target_link_directories(jxltk PRIVATE BEFORE contrib/jxlazy)

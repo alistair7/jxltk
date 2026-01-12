@@ -340,7 +340,7 @@ void split(std::string_view input, std::string_view poutputDir,
       std::string filePath = (outputDir / frameBaseName).string();
       std::ofstream outFile(filePath, std::ios::binary);
       if (jxlBuffer.empty()) {
-        jxlBuffer.resize(kBufferSize);
+        jxlBuffer.resize(kDefaultIOBufferSize);
       }
       JxlEncoderStatus st = encodeUntilSuccess(enc, jxlBuffer.data(),
                                                jxlBuffer.size(), outFile);

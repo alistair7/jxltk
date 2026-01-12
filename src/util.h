@@ -40,6 +40,14 @@
 namespace jxltk {
 
 /**
+ * Get a numeric rank for the data type.
+ *
+ * When dealing with data of different types, the lower-ranked type should be converted
+ * to the higher-ranked type.
+ */
+int dataTypeRank(JxlDataType t);
+
+/**
  * Split a string at each occurance of the specified char.
  */
 std::vector<std::string_view> splitString(const std::string& str, char at,

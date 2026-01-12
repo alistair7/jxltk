@@ -20,7 +20,7 @@ namespace jxltk {
 constexpr float kLosslessDistanceThreshold = .001f;
 
 // Block size for IO
-constexpr size_t kBufferSize = size_t{128} * 1024;
+constexpr size_t kDefaultIOBufferSize = size_t{128} * 1024;
 
 /**
  * Process encoder input and write output to a file until JXL_ENC_SUCCESS.

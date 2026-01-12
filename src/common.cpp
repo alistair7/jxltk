@@ -50,6 +50,9 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
     uint32_t frameXsize, uint32_t frameYsize,
     const std::optional<int32_t>& brotliEffort) {
   JxlEncoderFrameSettings* settings = JxlEncoderFrameSettingsCreate(enc, nullptr);
+  if (!settings) {
+    throw JxltkError("%s: Failed to create frame settings", __func__);
+  }
   // Set distance / lossiness - default to lossless
   float distance = frameConfig.distance.value_or(0);
   if (distance < kLosslessDistanceThreshold) {

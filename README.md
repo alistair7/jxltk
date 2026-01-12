@@ -72,7 +72,7 @@ All commands broadly look like this:
         jxltk MODE [options] [filenames]
 ```
 
-Where MODE is one of the following: `split`, `merge`, `icc`, `gen`.
+Where MODE is one of the following: `split`, `merge`, `icc`, `gen`, `add`, `subtract`.
 
 In most places, a filename of '-' means stdin or stdout.  The MODE must come before any
 other option (the only exception being -h/--help).
@@ -324,7 +324,30 @@ Options for gen mode:
         Explicitly set the codestream conformance level.
 ```
 
+### `add` (+ `subtract`) Mode
+Add together the corresponding sample values of two images, or subtract the sample values
+from one image from the corresponding sample values of the other image.
 
+Add input2.jxl to input1.jxl and write the result to output.jxl:
+
+```
+        jxltk add input1.jxl input2.jxl output.jxl
+```
+
+Subtract input2.jxl from input1.jxl and write the result to output.jxl:
+
+```
+        jxltk subtract input1.jxl input2.jxl output.jxl
+```
+
+All samples in all channels are added/subtracted.  Inputs must have matching dimensions
+and channel configurations. The result is always encoded losslessly. In case of
+multi-frame inputs, only the first coalesced frame is considered.
+
+These operations can easily produce samples outside of \[0,1\] - these will be stored
+correctly, but most viewers will clamp them.
+
+There are no specific option flags for these modes.
 
 ## Merge Configuration Files
 A merge config file is a JSON document describing how to compose a JXL from one or

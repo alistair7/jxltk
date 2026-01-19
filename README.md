@@ -130,7 +130,7 @@ original(-ish) multi-frame JXL.
 
 Options for split mode:
 
-^ See also the common [Split, Merge, and Gen Options](#split--merge--and-gen-options).
+^ See also the common [Split, Merge, and Gen Options](#split-merge-and-gen-options).
 
 ```
   -c, --coalesce
@@ -159,7 +159,7 @@ Options for split mode:
 
 Given the following animation...
 
-![](docs/10_seconds_countdown.gif)
+![](doc/10_seconds_countdown.gif)
 
 ...splitting with coalescing enabled:
 
@@ -167,7 +167,7 @@ Given the following animation...
 jxltk split -ce1 input.jxl outputdir
 ```
 
-![](docs/split-coalesce.png)
+![](doc/split-coalesce.png)
 
 ...and with coalescing disabled...
 
@@ -175,7 +175,7 @@ jxltk split -ce1 input.jxl outputdir
 jxltk split -e1 input.jxl outputdir
 ```
 
-![](docs/split-nocoalesce.png)
+![](doc/split-nocoalesce.png)
 
 (The offsets in the filenames aren't significant - only `cropX0` and `cropY0` matter.)
 
@@ -219,12 +219,12 @@ Advanced use:
 jxltk merge -M merge.json -d1 -e7 output.JXL
 ```
 
-See [Merge Configuration Files](#Merge-Configuration-Files) to find out what you can do in
+See [Merge Configuration Files](#merge-configuration-files) to find out what you can do in
 merge.json.
 
 Options for merge mode:
 
-^ See also the common [Split, Merge, and Gen Options](#split--merge--and-gen-options).
+^ See also the common [Split, Merge, and Gen Options](#split-merge-and-gen-options).
 
 ```
   -M FILE, --merge-config=FILE
@@ -291,7 +291,7 @@ within `frameDefaults`.
 
 Options for gen mode:
 
-^ See also the common [Split, Merge, and Gen Options](#split--merge--and-gen-options).
+^ See also the common [Split, Merge, and Gen Options](#split-merge-and-gen-options).
 
 ```
   --compress-boxes=0|1
@@ -442,7 +442,7 @@ Here's a more complicated merge config for an animation which also includes laye
 Re-merging the file from the `split` example, using different durations and blending
 options:
 
-![](docs/merge.png)
+![](doc/merge.png)
 
 ```
 $ jxltk merge -M merge.json -v -d0 -E3 broken_clock.jxl
@@ -463,7 +463,7 @@ Writing frame [11/11]: 89x153+92+20 d0 e7 E3 duration=1000ms blend={mode=BLEND s
 Finished writing 'broken_clock.jxl'.
 ```
 
-![](docs/broken_clock.jxl.gif)
+![](doc/broken_clock.jxl.gif)
 
 ### Merge Config Reference
 
@@ -472,7 +472,7 @@ These keys are for setting properties of the whole image, and roughly correspond
 the "BasicInfo" and color profile in the libjxl API.
 
 
-`boxes` / `boxDefaults`: See [`boxes` Array](#-boxes--array). `boxDefaults` is an optional
+`boxes` / `boxDefaults`: See [`boxes` Array](#boxes-array). `boxDefaults` is an optional
 fallback box configuration - the supported keys are exactly the same as for the objects in
 the `boxes` array.  Keys that are not specified for individual boxes will default to the
 values defined here, if any.
@@ -483,9 +483,9 @@ values defined here, if any.
 the resulting file.  It's up to the library whether it actually produces a `jxll` box
 declaring the level - if you set it to 10, it always does.
 
-`color`: See [`color` Object](#-color--object).
+`color`: See [`color` Object](#color-object).
 
-`frames` / `frameDefaults`: See [`frames` Array](#-frames--array). `frameDefaults` is an
+`frames` / `frameDefaults`: See [`frames` Array](#frames-array). `frameDefaults` is an
 optional fallback frame configuration - the supported keys are exactly the same as for the
 objects in the `frames` array.  Keys that are not specified for individual frames will
 default to the values defined here, if any.
@@ -605,7 +605,7 @@ The `color` object should contain either `file` or `cicp`:
 
 `file`: Path to an existing ICC or JXL file from which the color profile will be read.
 
-`cicp`: See [`cicp` Object](#-cicp--object)
+`cicp`: See [`cicp` Object](#cicp-object)
 
 #### `cicp` Object
 Allows the color profile to be specified as enumerated code points.

@@ -93,6 +93,7 @@ ColorProfile getColorProfile(const char* filename) {
     ColorProfile color;
     color.icc.data = JXLTK_MAKE_UNIQUE_FOR_OVERWRITE<uint8_t[]>(buff.size());
     color.icc.size = buff.size();
+    memcpy(color.icc.data.get(), buff.data(), buff.size());
     return color;
   }
   JXLTK_ERROR("Unexpected return value from JxlSignatureCheck: %d",

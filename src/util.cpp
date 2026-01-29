@@ -4,6 +4,8 @@
  * Use of this source code is governed by an MIT-style
  * license that can be found in the LICENSE file.
 */
+#include <cinttypes>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -17,6 +19,7 @@
 
 #include "../contrib/jxlazy/include/jxlazy/decoder.h"
 
+#include "log.h"
 #include "util.h"
 
 using std::cerr;
@@ -204,5 +207,144 @@ int removeInterleavedChannel(void* pixels, uint32_t xsize, uint32_t ysize,
   return 0;
 }
 
+/**
+ * Return the value of a "half step" when dividing the unit interval into (2**bits)-1 steps.
+ *
+ * The idea being a sample saved losslessly at this bit depth should be within this
+ * distance of its original value after decoding, but obviously this crumbles as bits
+ * approaches 32.
+ *
+ * TODO: learn to float.
+ */
+constexpr float getEpsilon(uint32_t bits) {
+  return static_cast<float>(1.0 / (2 * (pow(2, bits) - 1)));
+}
+
+/**
+ * Given two open Decoders, check that every pixel in every channel of every frame matches
+ *
+ * Channel layout must be identical. Frame durations, names and blending are ignored.
+ * Whether frames are compared coalesced is determined by the options used when the inputs
+ * were opened.  Channels depths can be different, but each channel is compared at the
+ * higher depth.
+ *
+ * @return true if all pixels match, else false.
+ */
+bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage) {
+  JxlBasicInfo leftInfo = leftImage.getBasicInfo();
+  JxlBasicInfo rightInfo = rightImage.getBasicInfo();
+  if (leftInfo.num_color_channels != rightInfo.num_color_channels) {
+    JXLTK_DEBUG("Images have differing numbers of color channels (%" PRIu32
+                " vs %" PRIu32 ").", leftInfo.num_color_channels,
+                rightInfo.num_color_channels);
+    return false;
+  }
+  if (leftInfo.num_extra_channels != rightInfo.num_extra_channels) {
+    JXLTK_DEBUG("Images have differing numbers of extra channels (%" PRIu32
+                " vs %" PRIu32 ").", leftInfo.num_extra_channels,
+                rightInfo.num_extra_channels);
+    return false;
+  }
+  std::vector<jxlazy::ExtraChannelInfo> leftEcInfo = leftImage.getExtraChannelInfo();
+  std::vector<jxlazy::ExtraChannelInfo> rightEcInfo = rightImage.getExtraChannelInfo();
+  for (size_t eci = 0; eci < leftEcInfo.size(); ++eci) {
+    if (leftEcInfo[eci].info.type != rightEcInfo[eci].info.type) {
+      JXLTK_DEBUG("Images have differing extra channel order/types.");
+      return false;
+    }
+  }
+  size_t frameCount = leftImage.frameCount();
+  {
+    size_t rightFrameCount = rightImage.frameCount();
+    if (frameCount != rightFrameCount) {
+      JXLTK_DEBUG("Images have differing numbers of frames (%zu vs %zu).",
+                  frameCount, rightFrameCount);
+      return false;
+    }
+  }
+  auto frameLayerInfos = std::make_unique_for_overwrite<JxlLayerInfo[]>(frameCount);
+  for (size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
+    jxlazy::FrameInfo frameInfo = leftImage.getFrameInfo(frameIndex);
+    const JxlLayerInfo& layerInfo = frameInfo.header.layer_info;
+    frameLayerInfos.get()[frameIndex] = layerInfo;
+    {
+      jxlazy::FrameInfo rightFrameInfo = rightImage.getFrameInfo(frameIndex);
+      const JxlLayerInfo& rightLayerInfo = rightFrameInfo.header.layer_info;
+      if (layerInfo.xsize != rightLayerInfo.xsize ||
+          layerInfo.ysize != rightLayerInfo.ysize ||
+          layerInfo.crop_x0 != rightLayerInfo.crop_x0 ||
+          layerInfo.crop_y0 != rightLayerInfo.crop_y0) {
+        JXLTK_DEBUG("Frame %zu has differing crop/offset ("
+                    "%" PRIu32 "x%" PRIu32 "%c%" PRId32 "%c%" PRId32 " vs "
+                    "%" PRIu32 "x%" PRIu32 "%c%" PRId32 "%c%" PRId32 ").", frameIndex,
+                    layerInfo.xsize, layerInfo.ysize,
+                    layerInfo.crop_x0 < 0 ? '-' : '+', abs(layerInfo.crop_x0),
+                    layerInfo.crop_y0 < 0 ? '-' : '+', abs(layerInfo.crop_y0),
+                    rightLayerInfo.xsize, rightLayerInfo.ysize,
+                    rightLayerInfo.crop_x0 < 0 ? '-' : '+', abs(rightLayerInfo.crop_x0),
+                    rightLayerInfo.crop_y0 < 0 ? '-' : '+', abs(rightLayerInfo.crop_y0));
+        return false;
+      }
+    }
+  }
+
+  uint32_t colorBitsPerSample =
+      std::max(leftInfo.bits_per_sample, rightInfo.bits_per_sample);
+  float colorEpsilon = getEpsilon(colorBitsPerSample);
+  JXLTK_TRACE("Color epsilon for %" PRIu32 " bits is %f", colorBitsPerSample,
+              colorEpsilon);
+  auto ecEpsilons = std::make_unique_for_overwrite<float[]>(leftInfo.num_extra_channels);
+  for (size_t eci = 0; eci < leftInfo.num_extra_channels; ++eci) {
+    uint32_t ecBitsPerSample = std::max(leftEcInfo[eci].info.bits_per_sample,
+                                        rightEcInfo[eci].info.bits_per_sample);
+    ecEpsilons[eci] = getEpsilon(ecBitsPerSample);
+    JXLTK_TRACE("EC epsilon for %" PRIu32 " bits is %f", ecBitsPerSample,
+                ecEpsilons[eci]);
+  }
+
+  jxlazy::FramePixels<float> leftFrame, rightFrame;
+  for (size_t frameIdx = 0; frameIdx < frameCount; ++frameIdx) {
+    leftImage.getFramePixels(&leftFrame, frameIdx, leftInfo.num_color_channels,
+                             std::span<const int>({-1}));
+    rightImage.getFramePixels(&rightFrame, frameIdx, rightInfo.num_color_channels,
+                              std::span<const int>({-1}));
+
+    const float* thisLeftColorData = leftFrame.color.data();
+    const float* thisRightColorData = rightFrame.color.data();
+    for (size_t sampleIdx = 0; sampleIdx < leftFrame.color.size(); ++sampleIdx) {
+      float diff = std::fabs(*thisLeftColorData++) - std::fabs(*thisRightColorData++);
+      if (diff >= colorEpsilon) {
+        size_t pixelIndex = sampleIdx / leftInfo.num_color_channels;
+        JXLTK_DEBUG("Color samples in frame %zu at pixel %zux%zu channel %zu differ "
+                    "when decoded with %" PRIu32 "-bit precision", frameIdx,
+                    pixelIndex / frameLayerInfos[frameIdx].ysize,
+                    pixelIndex % frameLayerInfos[frameIdx].ysize,
+                    sampleIdx % leftInfo.num_color_channels, colorBitsPerSample);
+        return false;
+      }
+    }
+    auto leftEcIter = leftFrame.ecs.cbegin();
+    auto rightEcIter = rightFrame.ecs.cbegin();
+    for (size_t ec = 0; ec < leftFrame.ecs.size(); ++ec) {
+      const std::vector<float>& leftEc = (leftEcIter++)->second;
+      const std::vector<float>& rightEc = (rightEcIter++)->second;
+      const float* leftEcData = rightEc.data();
+      const float* rightEcData = rightEc.data();
+      for (size_t sampleIdx = 0; sampleIdx < leftEc.size(); ++sampleIdx) {
+        float diff = std::fabs(*leftEcData++) - std::fabs(*rightEcData++);
+        if (diff >= ecEpsilons[ec]) {
+          size_t pixelIndex = sampleIdx;
+          JXLTK_DEBUG("Extra channel samples in frame %zu at pixel %zux%zu channel %zu"
+                      " differ.", frameIdx,
+                      pixelIndex / frameLayerInfos[frameIdx].ysize,
+                      pixelIndex % frameLayerInfos[frameIdx].ysize,
+                      ec);
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
 
 }  // namespace jxltk

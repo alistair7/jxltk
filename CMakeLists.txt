@@ -53,7 +53,7 @@ if(BUILD_TESTING)
   message(STATUS "Tests enabled")
 
   add_executable(jxltk_test src/enums_test.cpp src/color_test.cpp
-                            src/enums.cpp      src/color.cpp      src/util.cpp src/log.cpp)
+                            src/enums.cpp      src/color.cpp      src/util.cpp src/except.cpp src/log.cpp)
   target_include_directories(jxltk_test PUBLIC include)
   target_include_directories(jxltk_test PRIVATE .)
   target_link_libraries(jxltk_test PRIVATE

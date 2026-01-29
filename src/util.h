@@ -16,6 +16,10 @@
 
 #include <jxl/types.h>
 
+#include "../contrib/jxlazy/include/jxlazy/decoder.h"
+
+#include "except.h"
+
 // Evaluates to a quoted string of the numeric value of macro s
 #define JXLTK_ITOA(s) JXLTK_ITOA_(s)
 #define JXLTK_ITOA_(s) #s
@@ -128,7 +132,7 @@ constexpr size_t bytesPerSample(JxlDataType t) {
   if (t == JXL_TYPE_UINT16) return 2;
   if (t == JXL_TYPE_FLOAT) return 4;
   if (t == JXL_TYPE_FLOAT16) return 2;
-  return 0;
+  throw JxltkError("%s: Unknown data type %d", __func__, static_cast<int>(t));
 }
 
 constexpr size_t bytesPerPixel(JxlDataType t, uint32_t numChannels) {
@@ -144,6 +148,16 @@ constexpr size_t bytesPerPixel(JxlDataType t, uint32_t numChannels) {
  */
 int removeInterleavedChannel(void* pixels, uint32_t xsize, uint32_t ysize,
                              const JxlPixelFormat& format, uint32_t index);
+
+/**
+ * Given two open Decoders, check that every pixel in every channel of every frame matches
+ *
+ * Channel layout must be identical. Frame durations, names and blending are ignored.
+ * Whether frames are compared coalesced is determined by the options used when the inputs
+ * were opened. Channel depths can be different, but each channel is compared at the
+ * higher depth.
+ */
+bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage);
 
 }  // namespace jxltk
 

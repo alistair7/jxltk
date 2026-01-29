@@ -259,6 +259,37 @@ int main_(int argc, char** argv) {
     return EXIT_SUCCESS;
   }
 
+  if (opts.mode == "compare") {
+    std::ifstream ileft;
+    std::istream* pleft = &std::cin;
+    std::ifstream iright;
+    std::istream* pright = &std::cin;
+    if (!opts.positional.empty() && opts.positional[0] != "-") {
+      ileft.open(opts.positional[0], std::ios::binary);
+      pleft = &ileft;
+    }
+    if (opts.positional.size() >= 2 && opts.positional[1] != "-") {
+      iright.open(opts.positional[1], std::ios::binary);
+      pright = &iright;
+    }
+    uint32_t flags = opts.coalesce ? 0 :
+                         static_cast<uint32_t>(jxlazy::DecoderFlag::NoCoalesce);
+    jxlazy::Decoder dleft;
+    dleft.openStream(*pleft, flags);
+    jxlazy::Decoder dright;
+    dright.openStream(*pright, flags);
+    if (haveSamePixels(dleft, dright)) {
+      JXLTK_NOTICE("%s and %s have the same pixel values.",
+                   shellQuote(opts.positional[0], true).c_str(),
+                   shellQuote(opts.positional[1], true).c_str());
+      return EXIT_SUCCESS;
+    }
+    JXLTK_NOTICE("%s and %s have DIFFERENT pixel values.",
+                 shellQuote(opts.positional[0], true).c_str(),
+                 shellQuote(opts.positional[1], true).c_str());
+    return EXIT_FAILURE;
+  }
+
   JXLTK_ERROR("Unknown mode %s.", shellQuote(opts.mode, true).c_str());
   return EXIT_FAILURE;
 }

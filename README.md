@@ -72,7 +72,8 @@ All commands broadly look like this:
         jxltk MODE [options] [filenames]
 ```
 
-Where MODE is one of the following: `split`, `merge`, `icc`, `gen`, `add`, `subtract`.
+Where MODE is one of the following: `split`, `merge`, `icc`, `gen`, `add`, `subtract`,
+`compare`.
 
 In most places, a filename of '-' means stdin or stdout.  The MODE must come before any
 other option (the only exception being -h/--help).
@@ -134,7 +135,7 @@ Options for split mode:
 
 ```
   -c, --coalesce
-        Flatten layers and output only full-image-sized animation frames. The merge config
+        Flatten layers and decode only full-image-sized animation frames. The merge config
         file will always use blend mode `REPLACE`, and all x/y offsets will be 0.
 
   -C, --config-only
@@ -348,6 +349,20 @@ These operations can easily produce samples outside of \[0,1\] - these will be s
 correctly, but most viewers will clamp them.
 
 There are no specific option flags for these modes.
+
+### `compare` Mode
+Check whether two JXLs contain the same pixel values across all frames and  channels,
+ignoring color profiles and frame durations. Each channel is compared using the higher of
+the two bit depths. The exit status will be 0 if all the pixels match.
+
+```
+        jxltk compare [opts] input1.jxl input2.jxl
+```
+
+  Options for compare mode:
+
+  -c, --coalesce
+        Flatten layers and decode only full frames.
 
 ## Merge Configuration Files
 A merge config file is a JSON document describing how to compose a JXL from one or

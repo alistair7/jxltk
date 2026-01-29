@@ -33,9 +33,10 @@ enum HelpSection : uint32_t {
   Gen =   4,
   Icc =   8,
   AddSubtract = 16,
+  Compare = 32,
 
   MergeSplitGen =   7,
-  All =   31,
+  All =   0xFFFFFFFF,
 };
 
 struct CommandLineOption {
@@ -55,8 +56,8 @@ constexpr CommandLineOption commandLineOptions[] = {
    "Less console output - use twice to see only errors, thrice for silence."},
   {"merge-config", 'M', HelpSection::Merge, "FILE",
     "Path to a JSON merge config file to read." },
-  {"coalesce", 'c', HelpSection::Split|HelpSection::AddSubtract, nullptr,
-   "Flatten layers and decode only full frames."},
+  {"coalesce", 'c', HelpSection::Split|HelpSection::AddSubtract|HelpSection::Compare,
+   nullptr, "Flatten layers and decode only full frames."},
   {"config-only", 'C', HelpSection::Split, nullptr,
    "Just generate the JSON merge config on stdout and don't write any files."},
   {"distance", 'd', HelpSection::MergeSplitGen, "FLOAT",
@@ -192,9 +193,17 @@ static void printHelp(HelpSection sec) {
             "  Add or subtract images sample-wise across all channels. Inputs must have\n"
             "  matching dimensions and channel configuration. The result is always\n"
             "  encoded losslessly. In case of multi-frame inputs, only the first\n"
-            "  coalesced frame is considered.\n\n"
-            "  These operations can easily produce samples outside of [0,1] - these\n"
-            "  will be stored correctly, but most viewers will clamp them.\n\n";
+            "  coalesced frame is considered.\n\n";
+  }
+  if ((sec & HelpSection::Compare)) {
+    cerr << "\nCOMPARE MODE\n\n"
+            "\tjxltk compare [opts] input1.jxl input2.jxl\n\n"
+            "  Check whether two JXLs contain the same pixel values across all frames and"
+            "  channels, ignoring color profiles and frame durations. Each channel is"
+            "  compared using the higher of the two bit depths. The exit status will be 0"
+            "  if all the pixels match.\n\n"
+            "  Options for compare mode:\n\n";
+    printSection(HelpSection::Compare, HelpSection::All);
   }
 }
 
@@ -289,6 +298,8 @@ CmdlineOpts parseArgs(int argc, char** argv) {
       sec = HelpSection::Icc;
     } else if (opts.mode == "add" || opts.mode == "subtract") {
       sec = HelpSection::AddSubtract;
+    } else if (opts.mode == "compare") {
+      sec = HelpSection::Compare;
     } else  {
       if (opts.mode != "-h" && opts.mode != "--help") {
         JXLTK_ERROR("Invalid mode %s.", shellQuote(opts.mode, true).c_str());
@@ -574,6 +585,14 @@ CmdlineOpts parseArgs(int argc, char** argv) {
     }
     if (opts.positional[2] != "-") {
       confirmOverwrite(opts.positional[2], usedStdin, false);
+    }
+  } else if (opts.mode == "compare") {
+    if (opts.positional.size() != 2) {
+      JXLTK_ERROR("%s mode requires 2 arguments.", opts.mode.c_str());
+    }
+    if (opts.positional[0] == "-" && opts.positional[1] == "-") {
+      JXLTK_ERROR("Can't read both inputs from stdin.");
+      exit(EXIT_FAILURE);
     }
   }
 

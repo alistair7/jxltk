@@ -84,7 +84,8 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
     }
   }
 
-  JxlFrameHeader frameHeader{};
+  JxlFrameHeader frameHeader;
+  JxlEncoderInitFrameHeader(&frameHeader);
   bool setHeader = false;
   if (frameConfig.blendMode &&
       *frameConfig.blendMode != frameHeader.layer_info.blend_info.blendmode) {

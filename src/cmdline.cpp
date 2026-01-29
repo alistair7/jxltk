@@ -193,7 +193,8 @@ static void printHelp(HelpSection sec) {
  * to create.
  */
 static void confirmOverwrite(string_view file, bool usedStdin, bool isDir) {
-  filesystem::file_type ftype = filesystem::status(file).type();
+  const std::filesystem::path path{file};
+  filesystem::file_type ftype = filesystem::status(path).type();
   if (ftype == filesystem::file_type::not_found) {
     return;
   }
@@ -207,6 +208,17 @@ static void confirmOverwrite(string_view file, bool usedStdin, bool isDir) {
       JXLTK_ERROR("Can't create directory at %s - file exists.",
                   shellQuote(file).c_str());
       exit(EXIT_FAILURE);
+    }
+    bool doPrompt = false;
+    for (const auto& dirEntry : std::filesystem::directory_iterator{path}) {
+      const std::filesystem::path ext = dirEntry.path().extension();
+      if (ext == ".jxl" || ext == ".box" || dirEntry.path().filename() == "merge.json") {
+        doPrompt = true;
+        break;
+      }
+    }
+    if (!doPrompt) {
+      return;
     }
     cerr << "Write output files into existing directory ";
   } else {

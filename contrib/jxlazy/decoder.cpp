@@ -1302,6 +1302,17 @@ JxlDecoderStatus Decoder::processInput_(int untilStatus,
         FrameInfo frameInfo;
         if (JxlDecoderGetFrameHeader(dec, &frameInfo.header) != JXL_DEC_SUCCESS)
           throw LibraryError("Failed to get header for frame %zu.", nextFrameIndex_);
+        // Extra channel blend info is only useful when coalescing is disabled.
+        if (!(stateFlags_ & StateFlag::IsCoalescing)) {
+          frameInfo.ecBlendInfo.resize(basicInfo_.num_extra_channels);
+          for (uint32_t ec = 0; ec < basicInfo_.num_extra_channels; ++ec) {
+            if (JxlDecoderGetExtraChannelBlendInfo(dec, ec, &frameInfo.ecBlendInfo[ec])
+                != JXL_DEC_SUCCESS) {
+              throw LibraryError("Failed to get extra channel %" PRIu32 " blend info for"
+                                 " frame %zu.", ec, nextFrameIndex_);
+            }
+          }
+        }
         if (frameInfo.header.name_length > 0) {
           auto tmpName = JXLAZY_MAKE_UNIQUE_FOR_OVERWRITE<char[]>(
               frameInfo.header.name_length + 1);

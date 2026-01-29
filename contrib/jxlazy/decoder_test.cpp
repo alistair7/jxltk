@@ -41,6 +41,7 @@ static vector<uint8_t> loadFile(const string& filename) {
   return result;
 }
 
+
 TEST(Decoder, OpenFile) {
   jxlazy::Decoder jxl;
   EXPECT_THROW(jxl.openFile(getPath("file-that-does-not-exist").c_str()),
@@ -209,6 +210,7 @@ TEST(Decoder, CanGetFrameInfoCoalesced) {
   EXPECT_EQ(jxl.frameCount(), 1);
   jxlazy::FrameInfo frameInfo = jxl.getFrameInfo(0);
   EXPECT_EQ(frameInfo.name, string());
+  EXPECT_TRUE(frameInfo.ecBlendInfo.empty());
   const JxlLayerInfo& layerInfo = frameInfo.header.layer_info;
   EXPECT_EQ(layerInfo.xsize, bi.xsize);
   EXPECT_EQ(layerInfo.ysize, bi.ysize);
@@ -235,6 +237,15 @@ TEST(Decoder, CanGetFrameInfoNonCoalesced) {
   EXPECT_EQ(layerInfo->ysize, bi.ysize);
   EXPECT_EQ(layerInfo->have_crop, JXL_FALSE);
   EXPECT_EQ(layerInfo->blend_info.blendmode, JXL_BLEND_REPLACE);
+  // Extra channel blend modes appear to default to the color channels' blend mode
+  // TODO: create some more exotic files to test with.
+  ASSERT_EQ(frameInfo.ecBlendInfo.size(), bi.num_extra_channels);
+  for (size_t ec = 0; ec < bi.num_extra_channels; ++ec) {
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].blendmode, JXL_BLEND_REPLACE);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].source, 0);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].alpha, 0);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].clamp, 0);
+  }
 
   frameInfo = jxl.getFrameInfo(1);
   EXPECT_EQ(frameInfo.name, string("Name"));
@@ -245,6 +256,13 @@ TEST(Decoder, CanGetFrameInfoNonCoalesced) {
   EXPECT_EQ(layerInfo->crop_x0, -2);
   EXPECT_EQ(layerInfo->crop_y0, -1);
   EXPECT_EQ(layerInfo->blend_info.blendmode, JXL_BLEND_BLEND);
+  ASSERT_EQ(frameInfo.ecBlendInfo.size(), bi.num_extra_channels);
+  for (size_t ec = 0; ec < bi.num_extra_channels; ++ec) {
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].blendmode, JXL_BLEND_BLEND);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].source, 0);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].alpha, 0);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].clamp, 0);
+  }
 
   frameInfo = jxl.getFrameInfo(2);
   EXPECT_EQ(frameInfo.name, string());
@@ -255,6 +273,13 @@ TEST(Decoder, CanGetFrameInfoNonCoalesced) {
   EXPECT_EQ(layerInfo->crop_x0, 6);
   EXPECT_EQ(layerInfo->crop_y0, 1);
   EXPECT_EQ(layerInfo->blend_info.blendmode, JXL_BLEND_ADD);
+  ASSERT_EQ(frameInfo.ecBlendInfo.size(), bi.num_extra_channels);
+  for (size_t ec = 0; ec < bi.num_extra_channels; ++ec) {
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].blendmode, JXL_BLEND_ADD);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].source, 0);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].alpha, 0);
+    EXPECT_EQ(frameInfo.ecBlendInfo[ec].clamp, 0);
+  }
 
   // Reopen and make sure we can skip straight to frame 2
   jxl.openFile(getPath("generated.jxl").c_str(), jxlazy::DecoderFlag::NoCoalesce);

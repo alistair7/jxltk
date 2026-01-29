@@ -46,8 +46,15 @@ struct BoxInfo {
   uint64_t size;
 };
 
+/**
+ * Frame metadata
+ */
 struct FrameInfo {
-  JxlFrameHeader header = {};
+  /// Properties of the frame, including blending info for the main color channels.
+  JxlFrameHeader header{};
+  /// Blending info for any extra channels (always empty if coalescing is enabled).
+  std::vector<JxlBlendInfo> ecBlendInfo{};
+  /// The name of this frame, or empty string if it has no name.
   std::string name{};
 };
 

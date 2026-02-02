@@ -35,13 +35,17 @@ namespace jxlazy {
 struct BoxInfo {
   JxlBoxType type; // Always the decompressed type, not "brob"
   bool compressed; // True if this box was compressed in the codestream.
+  bool unbounded; // True if this box's size is unknown as it runs to the end of the file.
 
   /**
-   * Size of the (possibly compressed) box content (exluding type/size box headers).
+   * Size of the (possibly compressed) box content, exluding type/size box headers.
    *
    * For uncompressed boxes, or compressed boxes decoded with `decompress = false`,
    * this is the exact number of bytes required to store the output from `getBoxContent`.
    * It does NOT tell you the decompressed size of a compressed box.
+   *
+   * A final box with no explicit size is also reported as having a size of 0.
+   * If @c unbounded is true and @c size is 0, the box content could be any length.
    */
   uint64_t size;
 };

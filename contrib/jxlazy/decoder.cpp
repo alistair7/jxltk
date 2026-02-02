@@ -885,7 +885,8 @@ bool Decoder::getBoxContent(size_t index, uint8_t* destination, size_t max,
   goToBox_(index);
 
   JxlDecoder* dec = dec_.get();
-  if (boxes_.at(index).compressed &&
+  BoxInfo& boxInfo = boxes_.at(index);
+  if (boxInfo.compressed &&
       JxlDecoderSetDecompressBoxes(dec, decompress) != JXL_DEC_SUCCESS) {
     throw NoBrotliError("%s: Failed to %s box decompression%s.", __func__,
                         decompress ? "enable" : "disable",
@@ -901,8 +902,13 @@ bool Decoder::getBoxContent(size_t index, uint8_t* destination, size_t max,
                                           JXL_DEC_BOX_NEED_MORE_OUTPUT,
                                           StopAtIndex::None, 0, StopAtIndex::None, 0);
   size_t notWritten = JxlDecoderReleaseBoxBuffer(dec);
+  size_t dataSize = max - notWritten;
   if (written)
-    *written = max - notWritten;
+    *written = dataSize;
+  // If this box has unbounded size, we might now know its actual size
+  if (result == JXL_DEC_SUCCESS && boxInfo.unbounded) {
+    boxInfo.size = dataSize;
+  }
   return (result == JXL_DEC_SUCCESS || result == JXL_DEC_BOX);
 }
 
@@ -911,9 +917,10 @@ bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
   destination->clear();
   checkOpen_();
   goToBox_(index);
-  bool isCompressed = boxes_.at(index).compressed;
+  BoxInfo& boxInfo = boxes_.at(index);
+  bool isCompressed = boxInfo.compressed;
   size_t realMax = max >= 0 ? static_cast<size_t>(max) : SIZE_MAX;
-  size_t expectedBoxSize = boxes_.at(index).size;
+  size_t expectedBoxSize = boxInfo.size;
   destination->resize(std::min(realMax, std::max(expectedBoxSize,size_t{32})));
 
   JxlDecoder* dec = dec_.get();
@@ -944,6 +951,10 @@ bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
                         __func__, index, expectedBoxSize, totalWritten);
       }
       destination->resize(totalWritten);
+      // If this box has unbounded size, we might now know its actual size
+      if (result == JXL_DEC_SUCCESS && boxInfo.unbounded) {
+        boxInfo.size = totalWritten;
+      }
       return true;
     }
 
@@ -1345,6 +1356,7 @@ JxlDecoderStatus Decoder::processInput_(int untilStatus,
         BoxInfo boxInfo;
         if (JxlDecoderGetBoxType(dec, boxInfo.type, JXL_FALSE) != JXL_DEC_SUCCESS)
           throw LibraryError("Failed to get raw box type.");
+        boxInfo.unbounded = false;
         boxInfo.compressed = (memcmp(boxInfo.type, "brob", 4) == 0);
         if(boxInfo.compressed) {
           // Get the real type.
@@ -1353,6 +1365,14 @@ JxlDecoderStatus Decoder::processInput_(int untilStatus,
         }
         if (JxlDecoderGetBoxSizeContents(dec, &boxInfo.size) != JXL_DEC_SUCCESS)
           throw LibraryError("Failed to get box content size.");
+        if (boxInfo.size == 0) {
+          // Is it actually empty, or just unbounded?
+          size_t rawSize;
+          if (JxlDecoderGetBoxSizeRaw(dec, &rawSize) == JXL_DEC_SUCCESS &&
+              rawSize == 0) {
+            boxInfo.unbounded = true;
+          }
+        }
         boxes_.push_back(boxInfo);
       }
       if (++nextBoxIndex_ == 0)

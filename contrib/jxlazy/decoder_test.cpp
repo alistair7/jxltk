@@ -623,6 +623,37 @@ TEST(Decoder, GetsBoxes) {
   }
 }
 
+static const uint8_t JXL_ftyp[] = {  0,    0,    0,    0xc,  0x4a, 0x58, 0x4c, 0x20,
+                                     0xd,  0xa,  0x87, 0xa,
+                                     0,    0,    0,    0x14, 0x66, 0x74, 0x79, 0x70,
+                                     0x6a, 0x78, 0x6c, 0x20, 0,    0,    0,    0,
+                                     0x6a, 0x78, 0x6c, 0x20 };
+
+TEST(Decoder, UnfinishedBox) {
+  static const uint8_t emptBox[] = { 0, 0, 0, 0x8, 0x65, 0x6d, 0x70, 0x74 };
+  static const uint8_t jxlpHeader[] = { 0, 0, 0, 0, 0x6a, 0x78, 0x6c, 0x70 };
+  std::vector<uint8_t> boxes(sizeof JXL_ftyp + sizeof emptBox + sizeof jxlpHeader);
+  memcpy(boxes.data(), JXL_ftyp, sizeof JXL_ftyp);
+  memcpy(boxes.data() + sizeof JXL_ftyp, emptBox, sizeof emptBox);
+  memcpy(boxes.data() + sizeof JXL_ftyp + sizeof emptBox, jxlpHeader, sizeof jxlpHeader);
+
+  jxlazy::Decoder dec;
+  dec.openMemory(boxes.data(), boxes.size(), 0, jxlazy::DecoderHint::WantBoxes);
+  // Empty box
+  jxlazy::BoxInfo emptInfo = dec.getBoxInfo(2);
+  EXPECT_EQ(emptInfo.size, 0);
+  EXPECT_FALSE(emptInfo.unbounded);
+  // Implicitly-sized box
+  jxlazy::BoxInfo jxlpInfo = dec.getBoxInfo(3);
+  EXPECT_EQ(jxlpInfo.size, 0);
+  EXPECT_TRUE(jxlpInfo.unbounded);
+
+  // Truncate the header of the last box
+  boxes.resize(boxes.size() - 1);
+  dec.openMemory(boxes.data(), boxes.size(), 0, jxlazy::DecoderHint::WantBoxes);
+  EXPECT_THROW(dec.getBoxInfo(3), jxlazy::JxlazyException);
+}
+
 TEST(Decoder, GetCodestreamLevel) {
   const uint32_t hints = (jxlazy::DecoderHint::NoPixels|jxlazy::DecoderHint::WantBoxes);
   jxlazy::Decoder jxl;

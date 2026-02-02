@@ -898,8 +898,7 @@ bool Decoder::getBoxContent(size_t index, uint8_t* destination, size_t max,
   }
 
   // Run decoder until this box is finished or we run out of space
-  JxlDecoderStatus result = processInput_(JXL_DEC_SUCCESS | JXL_DEC_BOX |
-                                          JXL_DEC_BOX_NEED_MORE_OUTPUT,
+  JxlDecoderStatus result = processInput_(JXL_DEC_BOX,
                                           StopAtIndex::None, 0, StopAtIndex::None, 0);
   size_t notWritten = JxlDecoderReleaseBoxBuffer(dec);
   size_t dataSize = max - notWritten;
@@ -940,8 +939,7 @@ bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
       throw ReadError("%s: Failed to set output buffer for box %zu "
                       "(previous buffer not released?).", __func__, index);
     }
-    JxlDecoderStatus result = processInput_(JXL_DEC_SUCCESS | JXL_DEC_BOX |
-                                            JXL_DEC_BOX_NEED_MORE_OUTPUT,
+    JxlDecoderStatus result = processInput_(JXL_DEC_BOX,
                                             StopAtIndex::None, 0, StopAtIndex::None, 0);
     size_t notWritten = JxlDecoderReleaseBoxBuffer(dec);
     totalWritten += availOut - notWritten;
@@ -956,6 +954,10 @@ bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
         boxInfo.size = totalWritten;
       }
       return true;
+    }
+    if (result != JXL_DEC_BOX_NEED_MORE_OUTPUT) {
+      throw ReadError("%s: Unexpected decoder status while reading box %zu: %d",
+                      __func__, index, static_cast<int>(result));
     }
 
     if (destination->size() == realMax) {
@@ -990,7 +992,7 @@ int Decoder::getCodestreamLevel() {
   for (size_t boxIndex = 2; ; ++boxIndex) {
     if (boxIndex >= boxes_.size()) {
       if ((stateFlags_ & StateFlag::SeenAllBoxes) ||
-          processInput_(JXL_DEC_SUCCESS, StopAtIndex::None, 0,
+          processInput_(0, StopAtIndex::None, 0,
                         StopAtIndex::Specific, boxIndex,
                         StopAtIndex::None, 0) != JXL_DEC_BOX) {
         return -1;
@@ -1065,8 +1067,7 @@ bool Decoder::getReconstructedJpeg(ostream& destination, size_t* jpegSize) {
     size_t availOut = chunkSize;
     if (JxlDecoderSetJPEGBuffer(dec, nextOut, availOut) != JXL_DEC_SUCCESS)
       throw LibraryError("%s: Failed to set JPEG output buffer.", __func__);
-    JxlDecoderStatus result = processInput_(JXL_DEC_FULL_IMAGE |
-                                            JXL_DEC_JPEG_NEED_MORE_OUTPUT,
+    JxlDecoderStatus result = processInput_(JXL_DEC_FULL_IMAGE,
                                             StopAtIndex::None, 0, StopAtIndex::None, 0,
                                             StopAtIndex::None, 0);
     size_t notWritten = JxlDecoderReleaseJPEGBuffer(dec);
@@ -1113,8 +1114,7 @@ bool Decoder::getReconstructedJpeg(vector<uint8_t>* destination, streamsize max)
   while (true) {
     if (JxlDecoderSetJPEGBuffer(dec, nextOut, availOut) != JXL_DEC_SUCCESS)
       throw LibraryError("%s: Failed to set JPEG output buffer.", __func__);
-    JxlDecoderStatus result = processInput_(JXL_DEC_FULL_IMAGE |
-                                            JXL_DEC_JPEG_NEED_MORE_OUTPUT,
+    JxlDecoderStatus result = processInput_(JXL_DEC_FULL_IMAGE,
                                             StopAtIndex::None, 0, StopAtIndex::None, 0,
                                             StopAtIndex::None, 0);
     size_t notWritten = JxlDecoderReleaseJPEGBuffer(dec);
@@ -1181,7 +1181,8 @@ as soon as they occur, so that we never re-subscribe to them on rewind.
 
 Returns `this->status_` as soon as one of the following is true:
 
-- libjxl returns JXL_DEC_SUCCESS.
+- libjxl returns JXL_DEC_SUCCESS, JXL_DEC_ERROR, JXL_DEC_BOX_NEED_MORE_OUTPUT,
+  or JXL_DEC_JPEG_NEED_MORE_OUTPUT.
 - We reached any of the requested event types: `(status_ & untilStatus) != 0`.
 - `stopAtFrame == Specific`, and we received the JXL_DEC_FRAME for frame index @p
   `specificFrame'.  (For this to ever happen, the caller must ensure we're subscribed to
@@ -1201,6 +1202,10 @@ JxlDecoderStatus Decoder::processInput_(int untilStatus,
                                         StopAtIndex stopAtBox, size_t specificBox,
                                         StopAtIndex stopAtJpeg, size_t specificJpeg) {
 #ifdef JXLAZY_DEBUG
+  // Statuses < JXL_DEC_BASIC_INFO cannot be bitwise combined
+  if ((untilStatus & (JXL_DEC_BASIC_INFO - 1))) {
+    throw ReadError("%s: Invalid status to wait for.", __func__);
+  }
   ostringstream oss;
   oss << "status JXL_DEC_SUCCESS";
   if (untilStatus != 0) {
@@ -1305,6 +1310,7 @@ JxlDecoderStatus Decoder::processInput_(int untilStatus,
                        static_cast<void*>(this), static_cast<int>(wholeFileBuffered_));
         JxlDecoderCloseInput(dec);
       }
+      continue;
     }
 
     else if (status_ == JXL_DEC_FRAME) {
@@ -1438,6 +1444,11 @@ JxlDecoderStatus Decoder::processInput_(int untilStatus,
           (stopAtJpeg == StopAtIndex::Specific && nextJpegIndex_ == specificJpeg+1)) {
         return status_;
       }
+    }
+
+    else if (status_ == JXL_DEC_BOX_NEED_MORE_OUTPUT ||
+             status_ == JXL_DEC_JPEG_NEED_MORE_OUTPUT) {
+      break;
     }
 
     if ((status_ & untilStatus)) {

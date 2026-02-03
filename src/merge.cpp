@@ -518,7 +518,7 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
     auto nonReservedBoxes = getNonReservedBoxes(*dec);
     bool compress = mergeCfg.boxDefaults.compress.value_or(false);
     for (const std::pair<size_t,jxlazy::BoxInfo>& boxToCopy : nonReservedBoxes) {
-      dec->getBoxContent(boxToCopy.first, &boxContent, -1, compress);
+      dec->getBoxContent(boxToCopy.first, &boxContent, SIZE_MAX, compress);
       JXLTK_INFO("Writing box [%zu/%zu]: (copied) %s%s", nextBox+1, totalBoxes,
                  compress ? "'brob'/" : "",
                  shellQuote(simplifyString(std::string_view(boxToCopy.second.type, 4)),

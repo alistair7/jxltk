@@ -9,10 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - jxlazy: allow querying extra channel blend info.
+- jxlazy: new `unbounded` indicator to identify boxes that extend to the end of the file.
 
 ### Fixed
 
 - Merge mode: setting the color profile from an external icc doesn't work.
+- jxlazy: incorrect size check when decompressing boxes causes an error.
 
 ## [0.0.1] - 2026-01-19
 

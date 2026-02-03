@@ -613,7 +613,7 @@ public:
    * @param[out] destination vector whose contents will be replaced with the decoded box
    * content.
    * @param[in] max Optional limit on destination.size(), to avoid arbitrarily large
-   * memory allocation in case of decompressed boxes. Pass -1 for no limit.
+   * memory allocation in case of decompressed boxes.
    * @param[in] decompress If this box is a `brob` type, `true` causes the content to be
    * automatically decompressed, giving you the payload of the inner box; and `false`
    * causes the raw, compressed `brob` payload to be output. If the box is not a `brob`
@@ -625,7 +625,7 @@ public:
    * @p destination will contain the first `destination->size()` bytes of the box.
    */
   bool getBoxContent(size_t index, std::vector<uint8_t>* destination,
-                     std::streamsize max = -1, bool decompress = true);
+                     size_t max = SIZE_MAX, bool decompress = true);
 
   /**
    * Return the declared codestream level, if any, or -1 if not.

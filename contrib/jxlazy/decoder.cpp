@@ -912,15 +912,29 @@ bool Decoder::getBoxContent(size_t index, uint8_t* destination, size_t max,
 }
 
 bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
-                            std::streamsize max, bool decompress) {
+                            size_t max, bool decompress) {
   destination->clear();
   checkOpen_();
   goToBox_(index);
   BoxInfo& boxInfo = boxes_.at(index);
   bool isCompressed = boxInfo.compressed;
-  size_t realMax = max >= 0 ? static_cast<size_t>(max) : SIZE_MAX;
-  size_t expectedBoxSize = boxInfo.size;
-  destination->resize(std::min(realMax, std::max(expectedBoxSize,size_t{32})));
+  size_t vecSize = boxInfo.size;
+  if (vecSize == 0) {
+    if (boxInfo.unbounded) {
+      // No idea what size it will be
+      vecSize = 64;
+    } else {
+      return true;
+    }
+  } else if (isCompressed && decompress) {
+    // Guess at double the compressed size
+    size_t newSize;
+    if (safeMul<size_t>(vecSize, 2, &newSize)) {
+      vecSize = newSize;
+    }
+  }
+  vecSize = std::min(max, vecSize);
+  destination->resize(vecSize);
 
   JxlDecoder* dec = dec_.get();
 
@@ -944,9 +958,9 @@ bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
     size_t notWritten = JxlDecoderReleaseBoxBuffer(dec);
     totalWritten += availOut - notWritten;
     if (result == JXL_DEC_SUCCESS || result == JXL_DEC_BOX) {
-      if (expectedBoxSize > 0 && totalWritten != expectedBoxSize) {
+      if (!isCompressed && !boxInfo.unbounded && totalWritten != vecSize) {
         throw ReadError("%s: Unexpected length for box %zu data - expected %zu, got %zu.",
-                        __func__, index, expectedBoxSize, totalWritten);
+                        __func__, index, vecSize, totalWritten);
       }
       destination->resize(totalWritten);
       // If this box has unbounded size, we might now know its actual size
@@ -960,7 +974,7 @@ bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
                       __func__, index, static_cast<int>(result));
     }
 
-    if (destination->size() == realMax) {
+    if (destination->size() == max) {
       // Output truncated
       destination->resize(destination->size() - notWritten);
       JXLAZY_DPRINTF("[%p] Box truncated to %zu bytes", static_cast<void*>(this),
@@ -970,13 +984,10 @@ bool Decoder::getBoxContent(size_t index, vector<uint8_t>* destination,
 
     // Grow buffer
     size_t newSize;
-    if (!safeMul(std::max<size_t>(destination->size(), 16), static_cast<size_t>(2),
-                 &newSize)) {
+    if (!safeMul<size_t>(std::max<size_t>(destination->size(), 16), 2, &newSize)) {
       newSize = SIZE_MAX;
     }
-    if (newSize > realMax) {
-      newSize = realMax;
-    }
+    newSize = std::min(newSize, max);
     destination->resize(newSize);
     nextOut = destination->data() + totalWritten;
     availOut = newSize - totalWritten;

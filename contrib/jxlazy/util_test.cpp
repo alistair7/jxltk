@@ -15,7 +15,9 @@
 #endif
 
 static std::string getPath(const std::string& relative) {
-  return std::string(JXLAZY_TEST_DATA_DIR "/") + relative;
+  const char* dataDir = getenv("JXLAZY_TEST_DATA_DIR");
+  dataDir = dataDir ? dataDir : "testfiles";
+  return std::string(dataDir) + '/' + relative;
 }
 
 TEST(Util, GetFileSize) {

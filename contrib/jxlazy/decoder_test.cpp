@@ -4,6 +4,7 @@
  * Use of this source code is governed by an MIT-style
  * license that can be found in the LICENSE file.
 */
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -16,20 +17,15 @@
 
 using namespace std;
 
-#ifndef JXLAZY_TEST_DATA_DIR
-#define JXLAZY_TEST_DATA_DIR "testfiles"
-#endif
-
 static string getPath(const string& relative) {
-  return string(JXLAZY_TEST_DATA_DIR "/") + relative;
+  const char* dataDir = getenv("JXLAZY_TEST_DATA_DIR");
+  dataDir = dataDir ? dataDir : "testfiles";
+  return string(dataDir) + '/' + relative;
 }
 
 static void loadFileAppend(const string& filename, vector<uint8_t>* v) {
   ifstream in(filename, ios::in|ios::binary);
-  // Not relying on tellg (unportable), stat (unportable), or filesystem::file_size (C++17)
-  in.ignore(std::numeric_limits<streamsize>::max());
-  streamsize fileSize = in.gcount();
-  in.seekg(0);
+  size_t fileSize = std::filesystem::file_size(filename);
   size_t oldSize = v->size();
   v->resize(oldSize + fileSize);
   in.read(reinterpret_cast<char*>(v->data() + oldSize), fileSize);
@@ -572,26 +568,38 @@ TEST(Decoder, GetsBoxes) {
     EXPECT_THROW(boxInfo = jxl.getBoxInfo(boxCount),
                  jxlazy::IndexOutOfRange);
 
-    for (size_t i = 0; i < boxCount; ++i) {
-      vector<uint8_t> boxdata;
-      EXPECT_TRUE(jxl.getBoxContent(i, &boxdata, -1, false));
-      boxInfo = jxl.getBoxInfo(i);
-      EXPECT_EQ(boxdata.size(), boxInfo.size);
+    for (bool decompress : {false, true}) {
+      for (size_t i = 0; i < boxCount; ++i) {
+        boxInfo = jxl.getBoxInfo(i);
+        vector<uint8_t> boxdata;
+        EXPECT_TRUE(jxl.getBoxContent(i, &boxdata, SIZE_MAX, decompress));
+        if (!decompress || !boxInfo.compressed) {
+          EXPECT_EQ(boxdata.size(), boxInfo.size);
+        }
 
-      // First box should always be "JXL " with 4-byte payload
-      if (i == 0) {
-        EXPECT_EQ(boxInfo.size, 4);
-        EXPECT_EQ(boxInfo.type, string("JXL "));
-        EXPECT_EQ(memcmp(boxdata.data(), "\r\n\x87\n", 4), 0);
-      } else if (memcmp(boxInfo.type, "Lazy", 4) == 0) {
-        EXPECT_EQ(boxInfo.size, 627);
-        EXPECT_EQ(memcmp(boxdata.data(), "This JPEG XL file", 17), 0);
-        EXPECT_EQ(boxdata.back(), '\n');
-        seenLazyBox = true;
+        // First box should always be "JXL " with 4-byte payload
+        if (i == 0) {
+          EXPECT_EQ(boxdata.size(), 4);
+          EXPECT_EQ(boxInfo.type, string("JXL "));
+          EXPECT_EQ(memcmp(boxdata.data(), "\r\n\x87\n", 4), 0);
+        } else if (memcmp(boxInfo.type, "Lazy", 4) == 0) {
+          EXPECT_EQ(boxdata.size(), 627);
+          EXPECT_EQ(memcmp(boxdata.data(), "This JPEG XL file", 17), 0);
+          EXPECT_EQ(boxdata.back(), '\n');
+          seenLazyBox = true;
+        } else if (memcmp(boxInfo.type, "Lzip", 4) == 0) {
+          EXPECT_TRUE(boxInfo.compressed);
+          if (decompress) {
+            EXPECT_EQ(boxdata.size(), 250);
+            EXPECT_EQ(memcmp(boxdata.data(), "This box is brotli compressed", 29), 0);
+          } else {
+            EXPECT_EQ(boxdata.size(), 40);
+            EXPECT_EQ(memcmp(boxdata.data(), "Lzip", 4), 0);
+          }
+        }
       }
+      EXPECT_TRUE(seenLazyBox);
     }
-
-    EXPECT_TRUE(seenLazyBox);
 #if 0
     EXPECT_EQ(jxl.rewindCount_, 2);
 #endif
@@ -604,7 +612,7 @@ TEST(Decoder, GetsBoxes) {
 
     vector<uint8_t> boxdata;
     for (size_t i = boxCount; i > 0; --i) {
-      EXPECT_TRUE(jxl.getBoxContent(i-1, &boxdata, -1, false));
+      EXPECT_TRUE(jxl.getBoxContent(i-1, &boxdata, SIZE_MAX, false));
       // First box should always be "JXL " with 4-byte payload
       if (i-1 == 0) {
         EXPECT_EQ(boxdata.size(), 4);

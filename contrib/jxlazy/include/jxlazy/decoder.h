@@ -10,6 +10,7 @@
  */
 #ifndef JXLAZY_JXLDECODER_H_
 #define JXLAZY_JXLDECODER_H_
+#include <map>
 #ifndef __cplusplus
 #error "This is a C++ header"
 #endif
@@ -21,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -77,6 +79,12 @@ struct ExtraChannelRequest {
   JxlPixelFormat format; // num_channels is ignored
   void* target;
   size_t capacity; // max bytes to write to @c target
+};
+
+template<class T>
+struct FramePixels {
+  std::vector<T> color;
+  std::map<size_t, std::vector<T>> ecs;
 };
 
 enum class StopAtIndex : uint8_t {
@@ -548,6 +556,119 @@ public:
   void getFramePixels(size_t frameIndex, const JxlPixelFormat& pixelFormat,
                       void* buffer, size_t capacity,
                       const std::vector<ExtraChannelRequest>& extraChannels = {});
+
+  template<class T>
+  static constexpr JxlDataType getJxlDataType() {
+    if constexpr (std::is_same_v<T, float>) {
+      return JXL_TYPE_FLOAT;
+    } else if constexpr (std::is_same_v<T, uint8_t>) {
+      return JXL_TYPE_UINT8;
+    } else if constexpr (std::is_same_v<T, uint16_t>) {
+      return JXL_TYPE_UINT16;
+    }
+    throw JxlazyException("Invalid template argument");
+  }
+
+  /**
+   * Get all pixels of a frame, in a restricted format.
+   *
+   * Unlike @ref getFramePixels, this function
+   * - Forces the color and extra channel buffers to use the same format (differing
+   *   only in the number of channels).
+   * - Forces the format to use `align = 0` and `endianness = JXL_NATIVE_ENDIAN`.
+   * - Does not require the caller to pre-allocate buffers.
+   * - Returns strongly-typed vectors of `float`, `uint32_t` or `uint8_t`.
+   *
+   * @param frameIndex Which frame to decode.
+   * @param numColorChannels Number of interleaved "color" channels to return. This must
+   * be equal to or one greater than (if you want interleaved alpha) the number of color
+   * channels in the image, OR 0 to skip the color channels entirely.
+   * @param ecsWanted List of extra channel indexes. Each element causes the corresponding
+   * extra channel of this frame to be decoded to a planar buffer in the returned
+   * structure. Indexes must be in strictly ascending order. The default behaviour is to
+   * skip all extra channels. Note, it's possible (and probably undesirable) to decode
+   * alpha to a planar extra channel buffer AND the interleaved color buffer at the same
+   * time.)
+   * @return A FramePixels object containing an interleaved color(+alpha) buffer, `color`,
+   * and a dictionary of extra channel buffers, indexed by the extra channel index.
+   */
+  template<class T>
+  FramePixels<T> getFramePixels(size_t frameIndex, uint32_t numColorChannels,
+                                std::span<const int> ecsWanted = {}) {
+    FramePixels<T> framePixels {
+      .color{},
+      .ecs{},
+    };
+    getFramePixels(&framePixels, frameIndex, numColorChannels, ecsWanted);
+    return framePixels;
+  }
+
+  /**
+   * As @ref getFramePixels, but re-use an existing FramePixels object
+   *
+   * This can avoid some reallocation.
+   */
+  template<class T>
+  void getFramePixels(FramePixels<T>* framePixels, size_t frameIndex,
+                      uint32_t numColorChannels, std::span<const int> ecsWanted = {}) {
+    framePixels->color.clear();
+    if (numColorChannels == 0 && ecsWanted.empty()) {
+      framePixels->ecs.clear();
+      return;
+    }
+
+    constexpr JxlDataType dataType = getJxlDataType<T>();
+    constexpr JxlPixelFormat ecFormat = { .num_channels = 1,
+                                          .data_type = dataType,
+                                          .endianness = JXL_NATIVE_ENDIAN,
+                                          .align = 0 };
+    size_t ecBufferSize = getFrameBufferSize(frameIndex, ecFormat);
+    size_t ecSampleCount = ecBufferSize / sizeof(T);
+
+    JxlPixelFormat colorFormat;
+    size_t colorBufferSize = 0;
+    T* colorBuffer = nullptr;
+    if (numColorChannels > 0) {
+      colorFormat.num_channels = numColorChannels;
+      colorFormat.data_type = ecFormat.data_type;
+      colorFormat.endianness = ecFormat.endianness;
+      colorFormat.align = ecFormat.align;
+      colorBufferSize = ecBufferSize * numColorChannels;
+      size_t colorSampleCount = ecSampleCount * numColorChannels;
+      framePixels->color.resize(colorSampleCount);
+      colorBuffer = framePixels->color.data();
+    }
+
+    std::vector<ExtraChannelRequest> ecReqs;
+    ecReqs.reserve(ecsWanted.size());
+    auto oldEcs = framePixels->ecs.begin();
+    std::map<size_t, std::vector<T> > newEcs;
+    int prevEc = -1;
+    for (int ec : ecsWanted) {
+      if (ec <= prevEc) {
+        throw UsageError("Invalid extra channel list requested");
+      }
+      prevEc = ec;
+      ExtraChannelRequest& thisEcReq = ecReqs.emplace_back();
+      thisEcReq.channelIndex = ec;
+      thisEcReq.format = ecFormat;
+
+      // If the old ecs map has another vector, steal it, else create new instance
+      typename decltype(newEcs)::iterator pos;
+      if (oldEcs != framePixels->ecs.end()) {
+        std::vector<T>& oldSamples = (oldEcs++)->second;
+        oldSamples.clear();
+        pos = newEcs.emplace_hint(newEcs.end(), ec, std::move(oldSamples));
+      } else {
+        pos = newEcs.emplace_hint(newEcs.end(), ec, std::vector<T>(ecSampleCount));
+      }
+      thisEcReq.target = pos->second.data();
+      thisEcReq.capacity = ecBufferSize;
+    }
+    framePixels->ecs = std::move(newEcs);
+
+    getFramePixels(frameIndex, colorFormat, colorBuffer, colorBufferSize, ecReqs);
+  }
 
   /**
    * Return the number of Boxes available in this image's container.

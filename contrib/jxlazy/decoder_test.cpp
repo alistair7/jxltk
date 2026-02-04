@@ -413,6 +413,22 @@ TEST(Decoder, GetsCorrectPixelsSingleFrame) {
   ASSERT_EQ(out, pixels.get() + size);
   jxl.getFramePixels(0, format, out, size);
   EXPECT_EQ(memcmp(out, pixels.get(), size), 0);
+
+
+
+  {
+    jxlazy::FramePixels framePixels = jxl.getFramePixels<uint8_t>(0, 3);
+    EXPECT_EQ(framePixels.color.size(), sizeof expect - 1);
+    EXPECT_EQ(memcmp(framePixels.color.data(), expect, sizeof expect - 1), 0);
+  }
+  {
+    jxlazy::FramePixels framePixels = jxl.getFramePixels<uint16_t>(0, 3);
+    EXPECT_EQ(framePixels.color.size(), sizeof expect - 1);
+  }
+  {
+    jxlazy::FramePixels framePixels = jxl.getFramePixels<float>(0, 4);
+    EXPECT_EQ(framePixels.color.size(), (sizeof expect - 1) + (sizeof expect - 1) / 3);
+  }
 }
 
 
@@ -513,7 +529,8 @@ TEST(Decoder, CanGetColorAndExtra) {
     .endianness = JXL_NATIVE_ENDIAN,
     .align = 0,
   };
-  std::vector<uint8_t> planarAlpha(jxl.getFrameBufferSize(0, alphaFormat));
+  std::vector<uint16_t> planarAlpha(
+      jxl.getFrameBufferSize(0, alphaFormat) / sizeof(uint16_t));
   JxlPixelFormat depthFormat {
     .num_channels = 1,
     .data_type = JXL_TYPE_UINT8,
@@ -523,7 +540,7 @@ TEST(Decoder, CanGetColorAndExtra) {
   std::vector<uint8_t> planarDepth(jxl.getFrameBufferSize(0, depthFormat));
 
   std::vector<jxlazy::ExtraChannelRequest> extra{
-    { 0, alphaFormat, planarAlpha.data(), planarAlpha.size() },
+    { 0, alphaFormat, planarAlpha.data(), planarAlpha.size() * sizeof(uint16_t) },
     { 1, depthFormat, planarDepth.data(), planarDepth.size() },
   };
 
@@ -543,15 +560,52 @@ TEST(Decoder, CanGetColorAndExtra) {
   expectDecoder.getFramePixels(0, depthFormat, expectDepth.data(), expectDepth.size());
   EXPECT_EQ(planarDepth, expectDepth);
 
-  vector<uint8_t> expectAlpha(planarAlpha.size());
+  vector<uint16_t> expectAlpha(planarAlpha.size());
   expectDecoder.openFile(getPath("frame0_alphaonly.jxl").c_str());
-  expectDecoder.getFramePixels(0, alphaFormat, expectAlpha.data(), expectAlpha.size());
+  expectDecoder.getFramePixels(0, alphaFormat, expectAlpha.data(),
+                               expectAlpha.size() * sizeof(uint16_t));
   EXPECT_EQ(expectAlpha, planarAlpha);
 
   vector<uint8_t> expectColor(interleavedColor.size());
   expectDecoder.openFile(getPath("frame0.jxl").c_str());
   expectDecoder.getFramePixels(0, colorFormat, expectColor.data(), expectColor.size());
   EXPECT_EQ(expectColor, interleavedColor);
+
+
+  {
+    jxlazy::FramePixels framePixels =
+        jxl.getFramePixels<uint8_t>(0, 3, std::span<const int>({1}));
+    EXPECT_EQ(framePixels.color, interleavedColor);
+    EXPECT_EQ(framePixels.ecs.size(), 1);
+    EXPECT_EQ(framePixels.ecs[1], expectDepth);
+  }
+  {
+    jxlazy::FramePixels framePixels =
+        jxl.getFramePixels<uint16_t>(0, 3, std::span<const int>({0,1}));
+    EXPECT_EQ(framePixels.color.size(), interleavedColor.size());
+    EXPECT_EQ(framePixels.ecs.size(), 2);
+    EXPECT_EQ(framePixels.ecs[0], expectAlpha);
+    EXPECT_EQ(framePixels.ecs[1].size(), expectAlpha.size());
+  }
+}
+
+
+TEST(Decoder, GetFramePixelsTypesafeErrors) {
+  jxlazy::Decoder jxl;
+  jxl.openFile(getPath("generated.jxl").c_str(), jxlazy::DecoderFlag::NoCoalesce);
+
+  // Duplicate ec index
+  EXPECT_THROW(jxl.getFramePixels<uint8_t>(0, 3, std::span<const int>({1,1})),
+               jxlazy::UsageError);
+  EXPECT_THROW(jxl.getFramePixels<uint8_t>(0, 3, std::span<const int>({0,1,1})),
+               jxlazy::UsageError);
+  EXPECT_THROW(jxl.getFramePixels<uint8_t>(0, 3, std::span<const int>({1,0})),
+               jxlazy::UsageError);
+  // Invalid ec index
+  EXPECT_THROW(jxl.getFramePixels<uint8_t>(0, 3, std::span<const int>({2})),
+               jxlazy::IndexOutOfRange);
+  // Requesting one color from RGB image
+  EXPECT_THROW(jxl.getFramePixels<uint8_t>(0, 1), jxlazy::LibraryError);
 }
 
 TEST(Decoder, GetsBoxes) {

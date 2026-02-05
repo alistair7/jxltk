@@ -86,15 +86,13 @@ struct FramePixels {
   /**
    * Interleaved RGB, RGBA, Gray, or GrayAlpha samples.
    */
-  std::vector<T, Alloc> color;
+  std::vector<T, Alloc> color{};
   /**
    * Maps extra channel index -> planar samples
    */
-  std::map<size_t, std::vector<T, Alloc>> ecs;
+  std::map<size_t, std::vector<T, Alloc>> ecs{};
 
-  bool operator==(const FramePixels& other) const {
-    return color == other.color && ecs == other.ecs;
-  }
+  bool operator==(const FramePixels& other) const = default;
 };
 
 enum class StopAtIndex : uint8_t {
@@ -580,7 +578,7 @@ public:
   }
 
   /**
-   * Get all pixels of a frame, in a restricted format.
+   * Get all pixels of a frame, in a simplified format.
    *
    * Unlike @ref getFramePixels, this function
    * - Forces the color and extra channel buffers to use the same format (differing
@@ -614,7 +612,7 @@ public:
   }
 
   /**
-   * As @ref getFramePixels, but re-use an existing FramePixels object
+   * As the previous @ref getFramePixels, but re-use an existing FramePixels object
    *
    * @param[in,out] framePixels Pointer to a valid FramePixels object, which may or
    * may not be empty.  Its contents are replaced, possibly re-using some of its
@@ -653,6 +651,7 @@ public:
     }
 
     auto oldEcs = std::move(framePixels->ecs);
+    framePixels->ecs.clear();
     auto oldEcIter = oldEcs.begin();
     auto oldEcEnd = oldEcs.end();
     std::vector<ExtraChannelRequest> ecReqs;

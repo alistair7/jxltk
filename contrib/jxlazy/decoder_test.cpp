@@ -471,9 +471,31 @@ TEST(Decoder, GetsCorrectPixelsMultiLayer) {
   }
 #if 0
   EXPECT_EQ(jxl.rewindCount_, 0);
+  // TODO: Test how Box events can interfere with this!
 #endif
 
-  // TODO: Test how Box events can interfere with this!
+
+  {
+    // Test reusing FramePixels object - start with nonsense data.
+    jxlazy::FramePixels<uint8_t> framePixels;
+    framePixels.ecs.emplace(123, std::vector<uint8_t>());
+    framePixels.ecs.emplace(456, std::vector<uint8_t>());
+    for (size_t frameIdx = 0; frameIdx < 3; ++frameIdx) {
+      jxl.getFramePixels<uint8_t>(&framePixels, frameIdx, 4, std::span<const int>({0}));
+      EXPECT_FALSE(framePixels.color.empty());
+      EXPECT_EQ(framePixels.ecs.size(), 1);
+      const std::vector<uint8_t>& planarAlpha = framePixels.ecs[0];
+      EXPECT_FALSE(planarAlpha.empty());
+      EXPECT_EQ(planarAlpha.size(),
+                framePixels.color.size() / format.num_channels);
+      // Note, getting alpha both interleaved and planar - make sure they match
+      for (size_t sampleIdx = 0; sampleIdx < framePixels.ecs[0].size(); ++sampleIdx) {
+        EXPECT_EQ(planarAlpha[sampleIdx],
+                  framePixels.color[sampleIdx * format.num_channels + format.num_channels - 1])
+            << "frame " << frameIdx << " sampleIdx " << sampleIdx;
+      }
+    }
+  }
 }
 
 TEST(Decoder, CanGetExtraChannelsOnly) {
@@ -514,6 +536,17 @@ TEST(Decoder, CanGetExtraChannelsOnly) {
   expectDecoder.openFile(getPath("frame0_alphaonly.jxl").c_str());
   expectDecoder.getFramePixels(0, alphaFormat, expectAlpha.data(), expectAlpha.size());
   EXPECT_EQ(expectAlpha, planarAlpha);
+
+  // Get only the alpha channel
+  {
+    jxlazy::FramePixels framePixels =
+        jxl.getFramePixels<float>(0, 0, std::span<const int>({0}));
+    EXPECT_TRUE(framePixels.color.empty());
+    EXPECT_EQ(framePixels.ecs.size(), 1);
+    EXPECT_EQ(framePixels.ecs[0].size() * sizeof(float), expectAlpha.size());
+    EXPECT_EQ(memcmp(framePixels.ecs[0].data(), expectAlpha.data(), expectAlpha.size()),
+              0);
+  }
 }
 
 TEST(Decoder, CanGetColorAndExtra) {

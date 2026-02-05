@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-#include <jxl/encode.h>
+#include <jxl/encode_cxx.h>
 
 #include "../contrib/jxlazy/include/jxlazy/decoder.h"
 #include "mergeconfig.h"
@@ -65,6 +65,18 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
  */
 std::vector<std::pair<size_t, jxlazy::BoxInfo> >
   getNonReservedBoxes(jxlazy::Decoder& dec);
+
+/**
+ * Allocate a new encoder and (if multiple threads requested) parallel runner
+ *
+ * If the encoder is single threaded, the parallel runner will be an empty unique_ptr.
+ * Otherwise, the parallel runner must remain valid for the lifetime of the encoder.
+ *
+ * @param memManager Memory manager, or nullptr to use standard allocation.
+ * @param numThreads Max number of encoding threads, or 0 to choose automatically.
+ */
+std::pair<JxlEncoderPtr,JxlThreadParallelRunnerPtr> makeThreadedEncoder(
+    const JxlMemoryManager* memManager, size_t numThreads = 0);
 
 /**
  * Return the number of non-reserved metadata boxes in the JXL.

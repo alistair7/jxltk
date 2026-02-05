@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include <jxl/encode_cxx.h>
+
 #include "common.h"
 #include "except.h"
 #include "mergeconfig.h"
@@ -192,6 +194,22 @@ std::vector<std::pair<size_t, jxlazy::BoxInfo> > getNonReservedBoxes(
     }
   }
   return boxes;
+}
+
+std::pair<JxlEncoderPtr,JxlThreadParallelRunnerPtr> makeThreadedEncoder(
+    const JxlMemoryManager* memManager, size_t numThreads) {
+  std::pair<JxlEncoderPtr,JxlThreadParallelRunnerPtr> result{JxlEncoderMake(memManager), nullptr};
+  numThreads = numThreads > 0 ? numThreads :
+               JxlThreadParallelRunnerDefaultNumWorkerThreads();
+  if (numThreads > 1) {
+    result.second = JxlThreadParallelRunnerMake(memManager, numThreads);
+    if (JxlEncoderSetParallelRunner(result.first.get(), JxlThreadParallelRunner,
+                                    result.second.get())
+        != JXL_ENC_SUCCESS) {
+      throw JxltkError("%s: Failed to set parallel runner for encoder", __func__);
+    }
+  }
+  return result;
 }
 
 size_t countNonReservedBoxes(jxlazy::Decoder& dec) {

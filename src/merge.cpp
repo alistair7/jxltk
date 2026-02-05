@@ -431,19 +431,8 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
   }
 
   // Init encoder
-  JxlMemoryManager* memoryManager = nullptr;
-  JxlEncoderPtr encp = JxlEncoderMake(memoryManager);
+  auto [encp, runner] = makeThreadedEncoder(nullptr, numThreads);
   JxlEncoder* enc = encp.get();
-  JxlThreadParallelRunnerPtr runner;
-  if (numThreads != 1) {
-    numThreads = numThreads > 0 ? numThreads :
-                 JxlThreadParallelRunnerDefaultNumWorkerThreads();
-    runner = JxlThreadParallelRunnerMake(memoryManager, numThreads);
-    if (JxlEncoderSetParallelRunner(enc, JxlThreadParallelRunner, runner.get())
-        != JXL_ENC_SUCCESS) {
-      throw JxltkError("%s: Failed to set parallel runner for encoder", __func__);
-    }
-  }
   if (mergeCfg.codestreamLevel && *mergeCfg.codestreamLevel >= 0 &&
       JxlEncoderSetCodestreamLevel(enc, *mergeCfg.codestreamLevel) != JXL_ENC_SUCCESS) {
     throw JxltkError("%s: Failed in JxlEncoderSetCodestreamLevel", __func__);

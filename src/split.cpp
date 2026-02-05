@@ -123,13 +123,9 @@ void split(std::string_view input, std::string_view poutputDir,
 
   // Init encoder if needed
   JxlEncoderPtr encp;
-  JxlMemoryManager* memoryManager = nullptr;
   JxlThreadParallelRunnerPtr runner;
   if (wantPixels) {
-    encp = JxlEncoderMake(memoryManager);
-    numThreads = numThreads > 0 ? numThreads :
-                 JxlThreadParallelRunnerDefaultNumWorkerThreads();
-    runner = JxlThreadParallelRunnerMake(memoryManager, numThreads);
+    std::tie(encp, runner) = makeThreadedEncoder(nullptr, numThreads);
   }
 
   // Check for non-main-alpha extra channels.

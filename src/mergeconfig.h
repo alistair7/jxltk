@@ -73,6 +73,11 @@ struct FrameConfig {
   std::optional<uint32_t> saveAsReference{};
 
   /**
+   * Return a new FrameConfig populated with the properties from @p header.
+   */
+  static FrameConfig fromJxlFrameHeader(const JxlFrameHeader& header);
+
+  /**
    * For all fields in @p overrides that contain a value, copy that value
    * into the corresponding field of this object.
    * Other fields are left untouched.

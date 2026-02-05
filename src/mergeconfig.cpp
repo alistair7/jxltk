@@ -392,6 +392,16 @@ BoxConfig &BoxConfig::update(const BoxConfig &b) {
   return *this;
 }
 
+FrameConfig FrameConfig::fromJxlFrameHeader(const JxlFrameHeader &header) {
+  return {
+    .blendMode = header.layer_info.blend_info.blendmode,
+    .blendSource = header.layer_info.blend_info.source,
+    .durationTicks = header.duration,
+    .offset{ {header.layer_info.crop_x0, header.layer_info.crop_y0} },
+    .saveAsReference = header.layer_info.save_as_reference,
+  };
+}
+
 FrameConfig& FrameConfig::update(const FrameConfig& f) {
   if (f.blendMode) blendMode = f.blendMode;
   if (f.blendSource) blendSource = f.blendSource;

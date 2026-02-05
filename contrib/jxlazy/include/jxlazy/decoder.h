@@ -81,10 +81,20 @@ struct ExtraChannelRequest {
   size_t capacity; // max bytes to write to @c target
 };
 
-template<class T>
+template<class T, class Alloc = std::allocator<T>>
 struct FramePixels {
-  std::vector<T> color;
-  std::map<size_t, std::vector<T>> ecs;
+  /**
+   * Interleaved RGB, RGBA, Gray, or GrayAlpha samples.
+   */
+  std::vector<T, Alloc> color;
+  /**
+   * Maps extra channel index -> planar samples
+   */
+  std::map<size_t, std::vector<T, Alloc>> ecs;
+
+  bool operator==(const FramePixels& other) const {
+    return color == other.color && ecs == other.ecs;
+  }
 };
 
 enum class StopAtIndex : uint8_t {
@@ -588,13 +598,13 @@ public:
    * structure. Indexes must be in strictly ascending order. The default behaviour is to
    * skip all extra channels. Note, it's possible (and probably undesirable) to decode
    * alpha to a planar extra channel buffer AND the interleaved color buffer at the same
-   * time.)
+   * time.)  If the span is exactly {-1}, all extra channels are decoded.
    * @return A FramePixels object containing an interleaved color(+alpha) buffer, `color`,
    * and a dictionary of extra channel buffers, indexed by the extra channel index.
    */
-  template<class T>
-  FramePixels<T> getFramePixels(size_t frameIndex, uint32_t numColorChannels,
-                                std::span<const int> ecsWanted = {}) {
+  template<class T, class Alloc = std::allocator<T>>
+  FramePixels<T, Alloc> getFramePixels(size_t frameIndex, uint32_t numColorChannels,
+                                       std::span<const int> ecsWanted = {}) {
     FramePixels<T> framePixels {
       .color{},
       .ecs{},
@@ -606,10 +616,12 @@ public:
   /**
    * As @ref getFramePixels, but re-use an existing FramePixels object
    *
-   * This can avoid some reallocation.
+   * @param[in,out] framePixels Pointer to a valid FramePixels object, which may or
+   * may not be empty.  Its contents are replaced, possibly re-using some of its
+   * existing buffers.
    */
-  template<class T>
-  void getFramePixels(FramePixels<T>* framePixels, size_t frameIndex,
+  template<class T, class Alloc = std::allocator<T>>
+  void getFramePixels(FramePixels<T, Alloc>* framePixels, size_t frameIndex,
                       uint32_t numColorChannels, std::span<const int> ecsWanted = {}) {
     framePixels->color.clear();
     if (numColorChannels == 0 && ecsWanted.empty()) {
@@ -624,6 +636,7 @@ public:
                                           .align = 0 };
     size_t ecBufferSize = getFrameBufferSize(frameIndex, ecFormat);
     size_t ecSampleCount = ecBufferSize / sizeof(T);
+    using Samples = std::vector<T, Alloc>;
 
     JxlPixelFormat colorFormat;
     size_t colorBufferSize = 0;
@@ -639,33 +652,50 @@ public:
       colorBuffer = framePixels->color.data();
     }
 
+    auto oldEcs = std::move(framePixels->ecs);
+    auto oldEcIter = oldEcs.begin();
+    auto oldEcEnd = oldEcs.end();
     std::vector<ExtraChannelRequest> ecReqs;
-    ecReqs.reserve(ecsWanted.size());
-    auto oldEcs = framePixels->ecs.begin();
-    std::map<size_t, std::vector<T> > newEcs;
-    int prevEc = -1;
-    for (int ec : ecsWanted) {
-      if (ec <= prevEc) {
-        throw UsageError("Invalid extra channel list requested");
-      }
-      prevEc = ec;
+
+    auto appendEcsReq =
+        [&ecReqs, &framePixels, &ecBufferSize,
+         &oldEcIter, &oldEcEnd, &ecSampleCount, &ecFormat] (int ec) {
       ExtraChannelRequest& thisEcReq = ecReqs.emplace_back();
       thisEcReq.channelIndex = ec;
       thisEcReq.format = ecFormat;
+      typename decltype(framePixels->ecs)::iterator pos;
 
       // If the old ecs map has another vector, steal it, else create new instance
-      typename decltype(newEcs)::iterator pos;
-      if (oldEcs != framePixels->ecs.end()) {
-        std::vector<T>& oldSamples = (oldEcs++)->second;
+      if (oldEcIter != oldEcEnd) {
+        Samples& oldSamples = (oldEcIter++)->second;
         oldSamples.clear();
-        pos = newEcs.emplace_hint(newEcs.end(), ec, std::move(oldSamples));
+        pos = framePixels->ecs.emplace_hint(framePixels->ecs.end(), ec,
+                                            std::move(oldSamples));
       } else {
-        pos = newEcs.emplace_hint(newEcs.end(), ec, std::vector<T>(ecSampleCount));
+        pos = framePixels->ecs.emplace_hint(framePixels->ecs.end(), ec, Samples());
       }
+      pos->second.resize(ecSampleCount);
       thisEcReq.target = pos->second.data();
       thisEcReq.capacity = ecBufferSize;
+    };
+
+    if (ecsWanted.size() == 1 && ecsWanted[0] == -1) {
+      ensureExtraChannelInfo_();
+      ecReqs.reserve(extra_.size());
+      for (size_t ec = 0; ec < extra_.size(); ++ec) {
+        appendEcsReq(ec);
+      }
+    } else {
+      ecReqs.reserve(ecsWanted.size());
+      int prevEc = -1;
+      for (int ec : ecsWanted) {
+        if (ec <= prevEc) {
+          throw UsageError("Invalid extra channel list requested");
+        }
+        prevEc = ec;
+        appendEcsReq(ec);
+      }
     }
-    framePixels->ecs = std::move(newEcs);
 
     getFramePixels(frameIndex, colorFormat, colorBuffer, colorBufferSize, ecReqs);
   }

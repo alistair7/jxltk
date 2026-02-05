@@ -586,6 +586,11 @@ TEST(Decoder, CanGetColorAndExtra) {
     EXPECT_EQ(framePixels.ecs.size(), 2);
     EXPECT_EQ(framePixels.ecs[0], expectAlpha);
     EXPECT_EQ(framePixels.ecs[1].size(), expectAlpha.size());
+
+    // Ask for all extra channels and verify that this is the same as asking for 0 and 1.
+    jxlazy::FramePixels framePixels2 =
+        jxl.getFramePixels<uint16_t>(0, 3, std::span<const int>({-1}));
+    EXPECT_EQ(framePixels2, framePixels);
   }
 }
 
@@ -606,6 +611,8 @@ TEST(Decoder, GetFramePixelsTypesafeErrors) {
                jxlazy::IndexOutOfRange);
   // Requesting one color from RGB image
   EXPECT_THROW(jxl.getFramePixels<uint8_t>(0, 1), jxlazy::LibraryError);
+  // Doesn't compile due to throw in constexpr function
+  //EXPECT_THROW(jxl.getFramePixels<uint64_t>(0, 1), jxlazy::JxlazyException);
 }
 
 TEST(Decoder, GetsBoxes) {

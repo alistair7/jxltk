@@ -50,6 +50,9 @@ cmake --build .
 sudo cmake --install .
 ```
 
+To build and run unit tests, add `-DBUILD_TESTING=ON` to the cmake command, and run
+the resulting `jxltk_test`.
+
 ### Building on Windows
 Left as an excercise :)
 
@@ -341,14 +344,12 @@ Subtract input2.jxl from input1.jxl and write the result to output.jxl:
         jxltk subtract input1.jxl input2.jxl output.jxl
 ```
 
-All samples in all channels are added/subtracted.  Inputs must have matching dimensions
-and channel configurations. The result is always encoded losslessly. In case of
-multi-frame inputs, only the first coalesced frame is considered.
+All samples in all channels of all frames are added/subtracted.  Inputs must have matching
+dimensions and channel configurations. The result is always encoded losslessly.
 
 These operations can easily produce samples outside of \[0,1\] - these will be stored
 correctly, but most viewers will clamp them.
 
-There are no specific option flags for these modes.
 
 ### `compare` Mode
 Check whether two JXLs contain the same pixel values across all frames and  channels,

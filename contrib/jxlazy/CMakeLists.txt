@@ -35,6 +35,7 @@ if(BUILD_TESTING)
   pkg_check_modules(GoogleTestMain REQUIRED IMPORTED_TARGET gtest_main)
   enable_testing()
   message(STATUS "Tests enabled")
+  add_compile_definitions(JXLAZY_TEST_DIR="${CMAKE_CURRENT_LIST_DIR}/testfiles")
 
   add_executable(jxlazy_decoder_test
                  decoder_test.cpp)

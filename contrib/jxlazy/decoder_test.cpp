@@ -15,12 +15,14 @@
 #include <jxlazy/decoder.h>
 #include <jxlazy/exception.h>
 
+#ifndef JXLAZY_TEST_DIR
+#define JXLAZY_TEST_DIR "testfiles"
+#endif
+
 using namespace std;
 
-static string getPath(const string& relative) {
-  const char* dataDir = getenv("JXLAZY_TEST_DATA_DIR");
-  dataDir = dataDir ? dataDir : "testfiles";
-  return string(dataDir) + '/' + relative;
+static std::string getPath(std::string_view s) {
+  return std::string(JXLAZY_TEST_DIR) + '/' + std::string(s);
 }
 
 static void loadFileAppend(const string& filename, vector<uint8_t>* v) {

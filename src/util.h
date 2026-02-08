@@ -7,6 +7,7 @@
 #ifndef JXLTK_UTIL_H_
 #define JXLTK_UTIL_H_
 
+#include <cinttypes>
 #include <cstdint>
 #include <iostream>
 #include <optional>
@@ -158,6 +159,36 @@ int removeInterleavedChannel(void* pixels, uint32_t xsize, uint32_t ysize,
  * higher depth.
  */
 bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage);
+
+
+
+struct CropRegion {
+  uint32_t width;
+  uint32_t height;
+  uint32_t x0;
+  uint32_t y0;
+};
+
+/**
+ * Find the smallest rectangular region of the frame that contains all the non-zero pixels.
+ *
+ * If there are no non-zero pixels, the region will be 0x0+0+0.
+ *
+ * @param[in] psamples Array of `width * height * numChannels` samples. Always
+ *   native-endian with no row padding.
+ * @param[in] xsize,ysize Width and height of the input in pixels.
+ * @param[in] numChannels Number of interleaved channels in @p psamples.
+ * @param[out] cropRegion Result region.
+ * @param[in] protectRegion If not nullptr, @p cropRegion will always contain this region.
+ *   i.e. this function behaves as if all pixels within @p protectRegion are non-zero.
+ *   This may be useful when checking multiple planar channels, as you might already know
+ *   that a certain area must be preserved. This is allowed to be the same pointer as
+ *   @p cropRegion.
+ * @return 0 on success.
+ */
+int findCropRegion(const void* psamples, uint32_t xsize, uint32_t ysize,
+                   JxlDataType dataType, size_t numChannels, CropRegion* cropRegion,
+                   const CropRegion* protectRegion = nullptr);
 
 }  // namespace jxltk
 

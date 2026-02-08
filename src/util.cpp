@@ -347,4 +347,177 @@ bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage) {
   return true;
 }
 
+template<class T>
+int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
+                   size_t numChannels, CropRegion* cropRegion,
+                   const CropRegion* protectRegion) {
+
+  JXLTK_TRACE("%" PRIu32 "x%" PRIu32 "; %zu channels", xsize, ysize, numChannels);
+  if (xsize == 0 || ysize == 0 || numChannels == 0) {
+    JXLTK_ERROR("Invalid arguments to %s", __func__);
+    cropRegion->x0 = cropRegion->y0 = cropRegion->width = cropRegion->height = 0;
+    return -1;
+  }
+
+  // x0 is the coordinate of the first pixel and x1 is the coordinate PAST the last pixel.
+  // Set x0 and y0 to their respective upper bounds (inclusive).
+  // Set x1 and y1 to their respective lower bounds (inclusive).
+  uint32_t x0 = xsize - 1, y0 = ysize - 1, x1 = 0, y1 = 0;
+  if (protectRegion) {
+    if (protectRegion->width > xsize ||
+        protectRegion->x0 > xsize - protectRegion->width ||
+        protectRegion->height > ysize ||
+        protectRegion->y0 > ysize - protectRegion->height) {
+      JXLTK_ERROR("Invalid region: %" PRIu32 "x%" PRIu32 "+%" PRIu32 "+%" PRIu32
+                  " doesn't fit within %" PRIu32 "x%" PRIu32 ".",
+                  protectRegion->width, protectRegion->height, protectRegion->x0,
+                  protectRegion->y0, xsize, ysize);
+      return -1;
+    }
+    x0 = protectRegion->x0;
+    x1 = protectRegion->x0 + protectRegion->width;
+    y0 = protectRegion->y0;
+    y1 = protectRegion->y0 + protectRegion->height;
+    JXLTK_TRACE("Preserve region %" PRIu32 "x%" PRIu32 "+%" PRIu32 "+%" PRIu32 ", "
+                "so x0 <= %" PRIu32 ", y0 <= %" PRIu32 ", x1 >= %" PRIu32 ", "
+                "y1 >= %" PRIu32 "",
+                protectRegion->width,
+                protectRegion->height,
+                protectRegion->x0,
+                protectRegion->y0,
+                x0, y0, x1, y1);
+  }
+
+  // Find top non-zero pixel (y0)
+  const T* samples = psamples;
+  bool foundPixel = false;
+  for (uint32_t y = 0; y < ysize && !foundPixel; ++y) {
+    if (y == y0) {
+      // Reached caller's upper bound on y0, so have it exactly.
+      JXLTK_TRACE("Searching down reached y0 upper bound, so break; "
+                  "x0 <= %" PRIu32 " y0 = %" PRIu32 ", x1 >= %" PRIu32 ", y1 >= %" PRIu32,
+                  x0, y0, x1, y1);
+      foundPixel = true;
+      break;
+    }
+    for (uint32_t x = 0; x < xsize; ++x) {
+      for (uint32_t c = 0 ; c < numChannels; ++c) {
+        if (*samples++ != 0) {
+          x0 = (x < x0) ? x : x0; // decrease upper bound
+          y0 = y; // exact
+          x1 = (x >= x1) ? x + 1 : x1; // increase lower bound
+          y1 = (y >= y1) ? y + 1 : y1; // increase lower bound
+          JXLTK_TRACE("Searching down: found pixel at (%" PRIu32 ",%" PRIu32 ");"
+                      " so... x0 <= %" PRIu32 " y0 = %" PRIu32 ", x1 >= %" PRIu32 ", "
+                      "y1 >= %" PRIu32 "",
+                      x, y, x0, y0, x1, y1);
+          foundPixel = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!foundPixel) {
+    JXLTK_INFO("No non-zero pixels");
+    cropRegion->x0 = cropRegion->y0 = cropRegion->width = cropRegion->height = 0;
+    return 0;
+  }
+
+  // Scan rows from bottom to top to find y1
+  foundPixel = false;
+  for (uint32_t y = ysize; y-- > 0 && !foundPixel; ) {
+    if (y == y1 - 1) {
+      // Reached known lower bound on y1, so have it exactly.
+      JXLTK_TRACE("Searching up: %" PRIu32 " <= y1 < %" PRIu32 ", so stop", y1, y + 1);
+      break;
+    }
+    for (uint32_t x = 0; x < xsize; ++x) {
+      samples = &psamples[numChannels * (y*xsize + x)];
+      for (uint32_t c = 0; c < numChannels; ++c) {
+        if (samples[c] != 0) {
+          y1 = y + 1; // exact
+          x0 = (x < x0) ? x : x0; // upper bound
+          x1 = (x >= x1) ? x + 1 : x1; // lower bound
+          JXLTK_TRACE("Searching up: found pixel at (%" PRIu32 ",%" PRIu32 ");"
+                      " so... x0 <= %" PRIu32 ", x1 >= %" PRIu32 ", y1 = %" PRIu32 "",
+                      x, y, x0, x1, y1);
+          foundPixel = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // Scan columns from left to find x0
+  // x0 is currently an upper bound - if we find no pixels, it's now exact
+  foundPixel = false;
+  for (uint32_t x = 0; x < x0 && !foundPixel; x++) {
+    for (uint32_t y = y0 + 1; y < y1; y++) {
+      samples = &psamples[numChannels * (y*xsize + x)];
+      for (uint32_t c = 0; c < numChannels; ++c) {
+        if (samples[c] != 0) {
+          x0 = x; // exact
+          JXLTK_TRACE("Searching left->right: found pixel at (%" PRIu32 ",%" PRIu32 ");"
+                      " so... x0 = %" PRIu32 ", x1 >= %" PRIu32 "", x, y, x0, x1);
+          foundPixel = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // Scan columns from right to find x1
+  foundPixel = false;
+  for (uint32_t x = xsize; x-- > 0 && !foundPixel; ) {
+    if (x == x1 - 1) {
+      // Reached known lower bound on x1, so have it exactly.
+      JXLTK_TRACE("Searching right->left: %" PRIu32 " <= x1 < %" PRIu32 ", so stop",
+                  x1, x + 1);
+      break;
+    }
+    for (uint32_t y = y0; y < y1; y++) {
+      samples = &psamples[numChannels * (y*xsize + x)];
+      for (uint32_t c = 0; c < numChannels; ++c) {
+        if (samples[c] != 0) {
+          x1 = x + 1; // exact
+          JXLTK_TRACE("Searching right->left: found pixel at (%" PRIu32 ",%" PRIu32 ");"
+                      " so... x1 = %" PRIu32 "", x, y, x1);
+          foundPixel = true;
+          break;
+        }
+      }
+    }
+  }
+
+  if (x0 >= xsize || y0 >= ysize || x1 <= x0 || y1 <= y0) {
+    cropRegion->x0 = cropRegion->y0 = cropRegion->width = cropRegion->height = 0;
+    return 0;
+  }
+  cropRegion->x0 = x0;
+  cropRegion->y0 = y0;
+  cropRegion->width = (x1 > x0 ? x1 - x0 : 0);
+  cropRegion->height = (y1 > y0 ? y1 - y0 : 0);
+  return 0;
+}
+
+int findCropRegion(const void* psamples, uint32_t xsize, uint32_t ysize,
+                   JxlDataType dataType, size_t numChannels, CropRegion* cropRegion,
+                   const CropRegion* protectRegion) {
+  if (dataType == JXL_TYPE_UINT8) {
+    return findCropRegion<uint8_t>(static_cast<const uint8_t*>(psamples),
+                                   xsize, ysize, numChannels, cropRegion, protectRegion);
+  }
+  if (dataType == JXL_TYPE_UINT16) {
+    return findCropRegion<uint16_t>(static_cast<const uint16_t*>(psamples),
+                                    xsize, ysize, numChannels, cropRegion, protectRegion);
+  }
+  if (dataType == JXL_TYPE_FLOAT) {
+    return findCropRegion<float>(static_cast<const float*>(psamples),
+                                 xsize, ysize, numChannels, cropRegion, protectRegion);
+  }
+  JXLTK_ERROR("Unsupported data type: %d", static_cast<int>(dataType));
+  return -1;
+}
+
 }  // namespace jxltk

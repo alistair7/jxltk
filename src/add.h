@@ -10,6 +10,7 @@
 
 #include "../contrib/jxlazy/include/jxlazy/decoder.h"
 #include "mergeconfig.h"
+#include "util.h"
 
 namespace jxltk {
 

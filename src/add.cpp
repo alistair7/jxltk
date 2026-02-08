@@ -23,6 +23,7 @@
 
 namespace jxltk {
 
+
 int addOrSubtract(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage, bool adding,
                   std::ostream& outfile, const FrameConfig& frameConfig = {},
                   size_t numThreads = 0) {
@@ -116,6 +117,7 @@ int addOrSubtract(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage, bool 
                             .align = 0 };
 
   for (size_t frameIdx = 0; frameIdx < frameCount; ++frameIdx) {
+
     JXLTK_TRACE("%s frame %zu.", opName, frameIdx);
     // Get frames and update left in place
     jxlazy::FrameInfo frameInfo = leftImage.getFrameInfo(frameIdx);

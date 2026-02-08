@@ -286,8 +286,7 @@ TEST(AddOrSubtract, Roundtrip) {
     // Subtract back
     {
       std::ostringstream ss;
-      EXPECT_EQ(jxltk::addOrSubtract(addedDec, subtrahendDec, false, ss, frameConfig),
-                0);
+      EXPECT_EQ(jxltk::addOrSubtract(addedDec, subtrahendDec, false, ss, frameConfig), 0);
       subtractedJxl = ss.str();
     }
     subtractedDec.openMemory(reinterpret_cast<uint8_t*>(subtractedJxl.data()),

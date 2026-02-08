@@ -35,7 +35,7 @@ enum HelpSection : uint32_t {
   AddSubtract = 16,
   Compare = 32,
 
-  MergeSplitGen =   7,
+  EncodeOptions = 23,
   All =   0xFFFFFFFF,
 };
 
@@ -60,7 +60,7 @@ constexpr CommandLineOption commandLineOptions[] = {
    nullptr, "Flatten layers and decode only full frames."},
   {"config-only", 'C', HelpSection::Split, nullptr,
    "Just generate the JSON merge config on stdout and don't write any files."},
-  {"distance", 'd', HelpSection::MergeSplitGen, "FLOAT",
+  {"distance", 'd', HelpSection::EncodeOptions, "FLOAT",
    "Butteraugli distance for encoded files. Default is 0 (lossless)." },
   {"effort", 'e',
    HelpSection::Merge|HelpSection::Split|HelpSection::Gen|HelpSection::AddSubtract,
@@ -70,15 +70,15 @@ constexpr CommandLineOption commandLineOptions[] = {
    "Globally disable (0) or enable (1) Brotli compression of metadata boxes." },
   {"brotli-effort", '\0', HelpSection::Merge|HelpSection::Gen, "0-11",
    "Effort for Brotli compression of metadata." },
-  {"best", '\0', HelpSection::MergeSplitGen, nullptr,
+    {"best", '\0', HelpSection::EncodeOptions|HelpSection::AddSubtract, nullptr,
    "Equivalent to `--effort=" JXLTK_ITOA(JXLTK_MAX_EFFORT)
    "--compress-boxes=1 --brotli-effort=11`." },
-  {"modular-nb-prev-channels", 'E', HelpSection::MergeSplitGen, "INT",
+  {"modular-nb-prev-channels", 'E', HelpSection::EncodeOptions, "INT",
    "Number of previous channels modular mode is allowed to reference."},
-  {"iterations", 'I', HelpSection::MergeSplitGen, "0-100",
+  {"iterations", 'I', HelpSection::EncodeOptions, "0-100",
    "Percentage of pixels used to learn MA trees in modular mode. "
    "Default is whatever libjxl decides."},
-  {"patches", '\0', HelpSection::MergeSplitGen, "0|1",
+  {"patches", '\0', HelpSection::EncodeOptions, "0|1",
    "Enable (1) or disable (0) automatic patch generation for all frames. "
    "Default is whatever libjxl decides."},
   {"duration-ms", '\0', HelpSection::Merge|HelpSection::Gen, "INT",
@@ -148,9 +148,9 @@ static void printHelp(HelpSection sec) {
             "  Split, merge, or examine JPEG XL files.\n\n"
             "  Global options:\n\n";
   printSection(HelpSection::All);
-  if ((sec & HelpSection::MergeSplitGen)) {
+  if ((sec & HelpSection::EncodeOptions)) {
     cerr << "  Common options for split, merge, and gen modes:\n\n";
-    printSection(HelpSection::MergeSplitGen, HelpSection::All);
+    printSection(HelpSection::EncodeOptions, HelpSection::All);
   }
   if ((sec & HelpSection::Split)) {
     cerr << "\nSPLIT MODE\n\n"
@@ -158,7 +158,7 @@ static void printHelp(HelpSection sec) {
             "  Deconstruct a multi-frame JXL into multiple single-frame\n"
             "  images.\n\n"
             "  Options for split mode:\n\n";
-    printSection(HelpSection::Split, HelpSection::MergeSplitGen);
+    printSection(HelpSection::Split, HelpSection::EncodeOptions);
   }
   if ((sec & HelpSection::Merge)) {
     cerr << "\nMERGE MODE\n\n"
@@ -167,7 +167,7 @@ static void printHelp(HelpSection sec) {
             "  Options for merge mode:\n\n"
             "  (Encoding options given on the command line apply to all\n"
             "  frames, and override any settings in merge config files.)\n\n";
-    printSection(HelpSection::Merge, HelpSection::MergeSplitGen);
+    printSection(HelpSection::Merge, HelpSection::EncodeOptions);
   }
   if ((sec & HelpSection::Gen)) {
     cerr << "\nGEN MODE\n\n"
@@ -175,7 +175,7 @@ static void printHelp(HelpSection sec) {
             "  Convenience function that writes a merge config template to\n"
             "  stdout for the named inputs.\n\n"
             "  Options for gen mode:\n\n";
-    printSection(HelpSection::Gen, HelpSection::MergeSplitGen);
+    printSection(HelpSection::Gen, HelpSection::EncodeOptions);
   }
   if ((sec & HelpSection::Icc)) {
     cerr << "\nICC MODE\n\n"
@@ -187,13 +187,12 @@ static void printHelp(HelpSection sec) {
     cerr << "\nADD / SUBTRACT MODES\n\n"
             "\tjxltk add [opts] input1.jxl input2.jxl output.jxl\n\n"
             "  Add input2.jxl to input1.jxl and write the result to output.jxl.\n\n"
-            "\tjxltk subtract input1.jxl input2.jxl output.jxl\n\n"
+            "\tjxltk subtract [opts] input1.jxl input2.jxl output.jxl\n\n"
             "  Subtract input2.jxl from input1.jxl and write the result to output.jxl."
             "\n\n"
-            "  Add or subtract images sample-wise across all channels. Inputs must have\n"
-            "  matching dimensions and channel configuration. The result is always\n"
-            "  encoded losslessly. In case of multi-frame inputs, only the first\n"
-            "  coalesced frame is considered.\n\n";
+            "  Add or subtract images sample-wise across all frames and all channels.\n"
+            "  Inputs must have matching dimensions and channel configuration.\n\n";
+    printSection(HelpSection::AddSubtract, HelpSection::All);
   }
   if ((sec & HelpSection::Compare)) {
     cerr << "\nCOMPARE MODE\n\n"

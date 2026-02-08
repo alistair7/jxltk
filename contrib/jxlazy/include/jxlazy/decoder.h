@@ -577,6 +577,18 @@ public:
     throw JxlazyException("Invalid template argument");
   }
 
+  template<class T>
+  static constexpr T one() {
+    if constexpr (std::is_same_v<T, float>) {
+      return 1.f;
+    } else if constexpr (std::is_same_v<T, uint8_t>) {
+      return 255;
+    } else if constexpr (std::is_same_v<T, uint16_t>) {
+      return 65535;
+    }
+    throw JxlazyException("Invalid template argument");
+  }
+
   /**
    * Get all pixels of a frame, in a simplified format.
    *

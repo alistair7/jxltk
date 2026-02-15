@@ -76,13 +76,13 @@ int main_(int argc, char** argv) {
         if (!box.file || box.file->empty()) continue;
         std::filesystem::path boxPath(*box.file);
         if (boxPath.is_absolute()) continue;
-        *box.file = jsonDir / boxPath;
+        *box.file = (jsonDir / boxPath).string();
       }
       for (auto& frameConfig : mergeOp.frames) {
         if (!frameConfig.file || frameConfig.file->empty()) continue;
         std::filesystem::path inpPath(*frameConfig.file);
         if (inpPath.is_absolute()) continue;
-        frameConfig.file = jsonDir / inpPath;
+        frameConfig.file = (jsonDir / inpPath).string();
       }
 
     } else {

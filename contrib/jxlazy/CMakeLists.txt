@@ -20,9 +20,7 @@ pkg_check_modules(LibJXLThreads REQUIRED IMPORTED_TARGET libjxl_threads>=0.7.0)
 #message(STATUS "Found libjxl_threads ${LibJXLThreads_VERSION}")
 
 
-# Add library without "STATIC" or "SHARED".
-# Run cmake with -DBUILD_SHARED_LIBS=ON to build shared instead of default static.
-add_library(jxlazy
+add_library(jxlazy STATIC
             decoder.cpp   include/jxlazy/decoder.h
             exception.cpp include/jxlazy/exception.h
             info.cpp      info.h

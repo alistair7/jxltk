@@ -54,31 +54,19 @@ To build and run unit tests, add `-DBUILD_TESTING=ON` to the cmake command, and 
 the resulting `jxltk_test`.
 
 ### Building on Windows
-jxltk can be built via vcpkg.
+Left as an excercise :)
 
-- If you have not previously set up vcpkg, clone the vcpkg repository and run the bootstrap script:
+It should work fine, but I haven't tried it yet.  I'll update this section when I have.
 
-```
-git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-.\bootstrap-vcpkg.bat
-```
+My suggestion would be:
 
-- Create a new folder for jxltk in the "ports" directory:
+- Install libjxl via [vcpkg](https://learn.microsoft.com/en-us/vcpkg/).
+- Run cmake on jxltk with
+  `-DCMAKE_TOOLCHAIN_FILE=<vcpkg-root>/scripts/buildsystems/vcpkg.cmake`
 
-```
-mkdir ports\jxltk
-```
+See https://learn.microsoft.com/en-us/vcpkg/users/buildsystems/cmake-integration
 
-- Copy vcpkg\portfile.cmake and vcpkg\vcpkg.json from the jxltk repository into the "ports\jxltk" folder.
-
-- Install jxltk via vcpkg:
-
-```
-.\vcpkg install jxltk
-```
-
-jxltk.exe should now be available in vcpkg's "bin" directory.
+Good luck!
 
 ## Command Line ##
 All commands broadly look like this:

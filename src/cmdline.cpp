@@ -62,17 +62,17 @@ constexpr CommandLineOption commandLineOptions[] = {
    "Just generate the JSON merge config on stdout and don't write any files."},
   {"distance", 'd', HelpSection::EncodeOptions, "FLOAT",
    "Butteraugli distance for encoded files. Default is 0 (lossless)." },
-  {"effort", 'e',
-   HelpSection::Merge|HelpSection::Split|HelpSection::Gen|HelpSection::AddSubtract,
-   "1-" JXLTK_ITOA(JXLTK_MAX_EFFORT),
+  {"effort", 'e', HelpSection::EncodeOptions, "1-" JXLTK_ITOA(JXLTK_MAX_EFFORT),
    "Encoding effort.  Default is whatever libjxl decides." },
   {"compress-boxes", '\0', HelpSection::Merge|HelpSection::Gen, "0|1",
    "Globally disable (0) or enable (1) Brotli compression of metadata boxes." },
   {"brotli-effort", '\0', HelpSection::Merge|HelpSection::Gen, "0-11",
    "Effort for Brotli compression of metadata." },
-    {"best", '\0', HelpSection::EncodeOptions|HelpSection::AddSubtract, nullptr,
+  {"best", '\0', HelpSection::EncodeOptions|HelpSection::AddSubtract, nullptr,
    "Equivalent to `--effort=" JXLTK_ITOA(JXLTK_MAX_EFFORT)
-   "--compress-boxes=1 --brotli-effort=11`." },
+   " --compress-boxes=1 --brotli-effort=11`.\n\tDoesn't literally mean best. "
+   "Options such as `-E`, `-I`, and `--patches`\n\tcan make the density better "
+   "or worse."},
   {"modular-nb-prev-channels", 'E', HelpSection::EncodeOptions, "INT",
    "Number of previous channels modular mode is allowed to reference."},
   {"iterations", 'I', HelpSection::EncodeOptions, "0-100",
@@ -149,7 +149,9 @@ static void printHelp(HelpSection sec) {
             "  Global options:\n\n";
   printSection(HelpSection::All);
   if ((sec & HelpSection::EncodeOptions)) {
-    cerr << "  Common options for split, merge, and gen modes:\n\n";
+    cerr << "COMMON ENCODING OPTIONS\n\n"
+            "  These options are common to the `split`, `merge`, `gen`, `add`,\n"
+            "  and `subtract` modes.\n\n";
     printSection(HelpSection::EncodeOptions, HelpSection::All);
   }
   if ((sec & HelpSection::Split)) {
@@ -192,7 +194,7 @@ static void printHelp(HelpSection sec) {
             "\n\n"
             "  Add or subtract images sample-wise across all frames and all channels.\n"
             "  Inputs must have matching dimensions and channel configuration.\n\n";
-    printSection(HelpSection::AddSubtract, HelpSection::All);
+    printSection(HelpSection::AddSubtract, HelpSection::EncodeOptions);
   }
   if ((sec & HelpSection::Compare)) {
     cerr << "\nCOMPARE MODE\n\n"

@@ -99,8 +99,8 @@ These can be used in any command.
         Default is '0', meaning choose automatically.
 ```
 
-### Split, Merge, and Gen Options
-These options are common to the `split`, `merge`, and `gen` modes.
+### Common encoding options
+These options are common to the `split`, `merge`, `gen`, `add`, and `subtract` modes.
 
 ```
   -d FLOAT, --distance=FLOAT
@@ -111,6 +111,8 @@ These options are common to the `split`, `merge`, and `gen` modes.
 
   --best
         Equivalent to `--effort=10 --compress-boxes=1 --brotli-effort=11`.
+        Doesn't literally mean best. Options such as `-E`, `-I`, and `--patches`
+        can make the density better or worse.
 
   -E INT, --modular-nb-prev-channels=INT
         Number of previous channels modular mode is allowed to reference.
@@ -345,7 +347,7 @@ Subtract input2.jxl from input1.jxl and write the result to output.jxl:
 ```
 
 All samples in all channels of all frames are added/subtracted.  Inputs must have matching
-dimensions and channel configurations. The result is always encoded losslessly.
+dimensions and channel configurations.
 
 These operations can easily produce samples outside of \[0,1\] - these will be stored
 correctly, but most viewers will clamp them.

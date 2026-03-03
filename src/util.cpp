@@ -349,7 +349,7 @@ bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage) {
 
 template<class T>
 int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
-                   size_t numChannels, CropRegion* cropRegion,
+                   size_t numChannels, bool alphaCrop, CropRegion* cropRegion,
                    const CropRegion* protectRegion) {
 
   JXLTK_TRACE("%" PRIu32 "x%" PRIu32 "; %zu channels", xsize, ysize, numChannels);
@@ -358,6 +358,7 @@ int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
     cropRegion->x0 = cropRegion->y0 = cropRegion->width = cropRegion->height = 0;
     return -1;
   }
+  const size_t startChannel = alphaCrop ? numChannels - 1 : 0;
 
   // x0 is the coordinate of the first pixel and x1 is the coordinate PAST the last pixel.
   // Set x0 and y0 to their respective upper bounds (inclusive).
@@ -400,9 +401,9 @@ int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
       foundPixel = true;
       break;
     }
-    for (uint32_t x = 0; x < xsize; ++x) {
-      for (uint32_t c = 0 ; c < numChannels; ++c) {
-        if (*samples++ != 0) {
+    for (uint32_t x = 0; x < xsize && !foundPixel; ++x, samples += numChannels) {
+      for (uint32_t c = startChannel; c < numChannels; ++c) {
+        if (samples[c] != 0) {
           x0 = (x < x0) ? x : x0; // decrease upper bound
           y0 = y; // exact
           x1 = (x >= x1) ? x + 1 : x1; // increase lower bound
@@ -432,9 +433,9 @@ int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
       JXLTK_TRACE("Searching up: %" PRIu32 " <= y1 < %" PRIu32 ", so stop", y1, y + 1);
       break;
     }
-    for (uint32_t x = 0; x < xsize; ++x) {
+    for (uint32_t x = 0; x < xsize && !foundPixel; ++x) {
       samples = &psamples[numChannels * (y*xsize + x)];
-      for (uint32_t c = 0; c < numChannels; ++c) {
+      for (uint32_t c = startChannel; c < numChannels; ++c) {
         if (samples[c] != 0) {
           y1 = y + 1; // exact
           x0 = (x < x0) ? x : x0; // upper bound
@@ -453,9 +454,9 @@ int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
   // x0 is currently an upper bound - if we find no pixels, it's now exact
   foundPixel = false;
   for (uint32_t x = 0; x < x0 && !foundPixel; x++) {
-    for (uint32_t y = y0 + 1; y < y1; y++) {
+    for (uint32_t y = y0 + 1; y < y1 && !foundPixel; y++) {
       samples = &psamples[numChannels * (y*xsize + x)];
-      for (uint32_t c = 0; c < numChannels; ++c) {
+      for (uint32_t c = startChannel; c < numChannels; ++c) {
         if (samples[c] != 0) {
           x0 = x; // exact
           JXLTK_TRACE("Searching left->right: found pixel at (%" PRIu32 ",%" PRIu32 ");"
@@ -476,9 +477,9 @@ int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
                   x1, x + 1);
       break;
     }
-    for (uint32_t y = y0; y < y1; y++) {
+    for (uint32_t y = y0; y < y1 && !foundPixel; y++) {
       samples = &psamples[numChannels * (y*xsize + x)];
-      for (uint32_t c = 0; c < numChannels; ++c) {
+      for (uint32_t c = startChannel; c < numChannels; ++c) {
         if (samples[c] != 0) {
           x1 = x + 1; // exact
           JXLTK_TRACE("Searching right->left: found pixel at (%" PRIu32 ",%" PRIu32 ");"
@@ -502,22 +503,84 @@ int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
 }
 
 int findCropRegion(const void* psamples, uint32_t xsize, uint32_t ysize,
-                   JxlDataType dataType, size_t numChannels, CropRegion* cropRegion,
-                   const CropRegion* protectRegion) {
+                   JxlDataType dataType, size_t numChannels, bool alphaCrop,
+                   CropRegion* cropRegion, const CropRegion* protectRegion) {
   if (dataType == JXL_TYPE_UINT8) {
     return findCropRegion<uint8_t>(static_cast<const uint8_t*>(psamples),
-                                   xsize, ysize, numChannels, cropRegion, protectRegion);
+                                   xsize, ysize, numChannels, alphaCrop, cropRegion,
+                                   protectRegion);
   }
   if (dataType == JXL_TYPE_UINT16) {
     return findCropRegion<uint16_t>(static_cast<const uint16_t*>(psamples),
-                                    xsize, ysize, numChannels, cropRegion, protectRegion);
+                                    xsize, ysize, numChannels, alphaCrop, cropRegion,
+                                    protectRegion);
   }
   if (dataType == JXL_TYPE_FLOAT) {
     return findCropRegion<float>(static_cast<const float*>(psamples),
-                                 xsize, ysize, numChannels, cropRegion, protectRegion);
+                                 xsize, ysize, numChannels, alphaCrop, cropRegion,
+                                 protectRegion);
   }
   JXLTK_ERROR("Unsupported data type: %d", static_cast<int>(dataType));
   return -1;
+}
+
+int cropInPlace(void* psamples, uint32_t width, uint32_t height,
+                JxlDataType dataType, size_t numChannels, const CropRegion& cropRegion) {
+  uint32_t x1, y1;
+  if (width == 0 || height == 0 || cropRegion.width == 0 || cropRegion.height == 0 ||
+      numChannels == 0 || cropRegion.x0 >= width || cropRegion.y0 >= height ||
+      !safeAdd(cropRegion.x0, cropRegion.width, &x1) ||
+      !safeAdd(cropRegion.y0, cropRegion.height, &y1)) {
+    JXLTK_ERROR("Invalid arguments");
+    return -1;
+  }
+  if (x1 > width || y1 > height) {
+    JXLTK_ERROR("Crop region cannot extend outside the frame");
+    return -1;
+  }
+
+  // Special case where no pixels need to move:
+  if (cropRegion.y0 == 0 && cropRegion.x0 == 0 &&
+     (cropRegion.width == width || cropRegion.height == 1)) {
+    JXLTK_DEBUG("No-op crop!");
+    return 0;
+  }
+
+  const size_t bytesPerPixel = bytesPerSample(dataType) * numChannels;
+  const size_t fullStride = width * bytesPerPixel;
+  const size_t cropStride = cropRegion.width * bytesPerPixel;
+  // Whatever format the samples are in, access as a char[].
+  char* samples = (char*)psamples;
+
+  const size_t cropOffsetPixels = cropRegion.y0 * width + cropRegion.x0;
+  const size_t unwidth = width - cropRegion.width;
+
+  // Use memcpy when the number of pixels being moved is <= the distance they're moving.
+  // i.e. `cropWidth <= cropOffsetPixels + y * unwidth`
+  // ...where `y` is the output scanline in [0, cropHeight - 1].
+  // With each row, we gain an extra `unwidth` of headroom.
+
+  // Special cases to avoid division by 0 unwidth, and negative numbers:
+  uint32_t firstMemcpyScan;
+  if (cropOffsetPixels >= cropRegion.width || unwidth == 0) {
+    firstMemcpyScan = 0;
+  } else {
+    firstMemcpyScan = (cropRegion.width - cropOffsetPixels) / unwidth + 1;
+    firstMemcpyScan = std::min(firstMemcpyScan, cropRegion.height);
+  }
+
+  for (size_t y = 0; y < firstMemcpyScan; y++) {
+    size_t moveTo = y * cropStride;
+    size_t moveFrom = (y + cropRegion.y0) * fullStride + cropRegion.x0 * bytesPerPixel;
+    memmove(&samples[moveTo], &samples[moveFrom], cropStride);
+  }
+  for (size_t y = firstMemcpyScan; y < cropRegion.height; y++) {
+    size_t moveTo = y * cropStride;
+    size_t moveFrom = (y + cropRegion.y0) * fullStride + cropRegion.x0 * bytesPerPixel;
+    memcpy(&samples[moveTo], &samples[moveFrom], cropStride);
+  }
+
+  return 0;
 }
 
 }  // namespace jxltk

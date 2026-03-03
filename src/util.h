@@ -177,7 +177,10 @@ struct CropRegion {
  * @param[in] psamples Array of `width * height * numChannels` samples. Always
  *   native-endian with no row padding.
  * @param[in] xsize,ysize Width and height of the input in pixels.
+ * @param[in] dataType Data type of samples in @p psamples.
  * @param[in] numChannels Number of interleaved channels in @p psamples.
+ * @param[in] alphaCrop If true, consider only the last sample of each pixel. i.e.,
+ *   assume the last channel is interleaved alpha, and we're cropping invisible pixels.
  * @param[out] cropRegion Result region.
  * @param[in] protectRegion If not nullptr, @p cropRegion will always contain this region.
  *   i.e. this function behaves as if all pixels within @p protectRegion are non-zero.
@@ -187,8 +190,26 @@ struct CropRegion {
  * @return 0 on success.
  */
 int findCropRegion(const void* psamples, uint32_t xsize, uint32_t ysize,
-                   JxlDataType dataType, size_t numChannels, CropRegion* cropRegion,
-                   const CropRegion* protectRegion = nullptr);
+                   JxlDataType dataType, size_t numChannels, bool alphaCrop,
+                   CropRegion* cropRegion, const CropRegion* protectRegion = nullptr);
+
+
+/**
+Crop a frame buffer in place.
+
+@param[in,out] psamples Array of `width * height * numChannels` interleaved samples in
+  row-major order.  Updated in place to represent the requested crop.  After cropping,
+  only the first `cropRegion.width * cropRegion.height * numChannels` samples in the
+  array are valid.
+@param[in] width,height Width and height of the uncropped image in pixels.
+@param[in] numChannels Number of interleaved channels.
+@param[in] dataType Sample data type.
+@param[in] cropRegion Position and size of the region to keep, which must be a non-strict
+  subset of the existing pixels.
+@return 0 on success.
+*/
+int cropInPlace(void* psamples, uint32_t width, uint32_t height,
+                JxlDataType dataType, size_t numChannels, const CropRegion& cropRegion);
 
 }  // namespace jxltk
 

@@ -53,8 +53,8 @@ if(BUILD_TESTING)
   message(STATUS "Tests enabled")
   add_compile_definitions(JXLTK_TEST_DIR="${CMAKE_CURRENT_LIST_DIR}/testfiles")
 
-  add_executable(jxltk_test src/add_test.cpp src/enums_test.cpp src/color_test.cpp                                    src/util_test.cpp
-                            src/add.cpp      src/enums.cpp      src/color.cpp      src/common.cpp src/mergeconfig.cpp src/util.cpp src/except.cpp src/log.cpp)
+  add_executable(jxltk_test src/add_test.cpp src/enums_test.cpp src/color_test.cpp src/merge_test.cpp                                   src/util_test.cpp
+                            src/add.cpp      src/enums.cpp      src/color.cpp      src/merge.cpp      src/pixmap.cpp src/common.cpp src/mergeconfig.cpp src/util.cpp src/except.cpp src/log.cpp)
   target_include_directories(jxltk_test PUBLIC include)
   target_include_directories(jxltk_test PRIVATE .)
   target_link_libraries(jxltk_test PRIVATE

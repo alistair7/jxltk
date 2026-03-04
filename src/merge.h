@@ -7,8 +7,8 @@
 #ifndef JXLTK_MERGE_H_
 #define JXLTK_MERGE_H_
 
+#include <iostream>
 #include <optional>
-#include <string>
 
 #include <jxl/types.h>
 
@@ -19,19 +19,16 @@ namespace jxltk {
 /**
  * Combine one or more JXLs into a single JXL.
  *
- * Ancilliary boxes on the first input file are copied to the output, but boxes
- * on all other inputs are ignored. Any boxes explicitly specified in @p
- * mergeConfig will also be included in the output.
- *
  * @param[in] mergeCfg Merge configuration, normally parsed from JSON file.
- * @param[in] output Name of the merged output file to create/overwrite.
+ * @param[in] fout Open stream where the result will be written.
  * @param[in] numThreads Number of threads to use, or 0 to decide automatically.
- * @param[in] forceDataType Force a specific data type to be used during
- * processing.
+ * @param[in] forceDataType Force a specific data type to be used during processing.
+ * @param[in] autoCrop Trim fully-transparent borders (for alpha-blended frames) and
+ *   all-zero borders (for kAdded frames), reducing the number of pixels without altering
+ *   the appearance of the result.
  */
-void merge(const MergeConfig& mergeCfg, const std::string& output,
-           size_t numThreads = 0,
-           const std::optional<JxlDataType>& forceDataType = {});
+void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads = 0,
+           const std::optional<JxlDataType>& forceDataType = {}, bool autoCrop = false);
 
 }  // namespace jxltk
 

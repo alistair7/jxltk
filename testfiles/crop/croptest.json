@@ -1,0 +1,28 @@
+{
+  "loops": 0,
+  "frameDefaults": {
+    "blendMode": "BLEND",
+    "durationMs": 1000,
+    "blendSource": 1,
+    "saveAsReference": 1
+  },
+  "frames": [
+    {
+      "blendSource": 0,
+      "cropX0": 8,
+      "cropY0": 7,
+      "file": "frame0_blend_+8+7.jxl"
+    },
+    {
+      "blendMode": "ADD",
+      "file": "frame1_add_+0+0.jxl"
+    },
+    {
+      "blendMode": "ADD",
+      "file": "frame2_add.jxl"
+    },
+    {
+      "file": "frame3_blend.jxl"
+    }
+  ]
+}

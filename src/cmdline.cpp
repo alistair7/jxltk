@@ -78,6 +78,10 @@ constexpr CommandLineOption commandLineOptions[] = {
   {"iterations", 'I', HelpSection::EncodeOptions, "0-100",
    "Percentage of pixels used to learn MA trees in modular mode. "
    "Default is whatever libjxl decides."},
+  {"optimize", '\0', HelpSection::Merge, "X,Y,Z,...",
+   "Enable the specified optimizations. Currently the only supported value is 'c',"
+   " which allows frames to be automatically cropped when this has no visible effect"
+   " on the coalesced result."},
   {"patches", '\0', HelpSection::EncodeOptions, "0|1",
    "Enable (1) or disable (0) automatic patch generation for all frames. "
    "Default is whatever libjxl decides."},
@@ -485,6 +489,14 @@ CmdlineOpts parseArgs(int argc, char** argv) {
 
     } else if (strcmp(longName, "threads") == 0) {
       opts.numThreads = stoi(options.optarg);
+
+    } else if (strcmp(longName, "optimize") == 0) {
+      if (strcmp(options.optarg, "c") != 0) {
+        JXLTK_ERROR("Unsupported optimization flag: %s",
+                    shellQuote(options.optarg, true).c_str());
+        exit(EXIT_FAILURE);
+      }
+      opts.autoCrop = true;
 
 #ifndef JXLTK_FLOATS_ARE_IEEE754
     } else if (strcmp(longName, "no-754") == 0) {

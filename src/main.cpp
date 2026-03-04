@@ -130,7 +130,16 @@ int main_(int argc, char** argv) {
 
     mergeOp.normalize();
 
-    merge(mergeOp, opts.positional.back(), opts.numThreads, opts.overrideDataType);
+    std::ofstream fout(opts.positional.back().c_str(), std::ios::binary);
+    if (!fout) {
+      JXLTK_ERROR("Failed to open %s for writing",
+                  shellQuote(opts.positional.back(), true).c_str());
+      return EXIT_FAILURE;
+    }
+
+    merge(mergeOp, fout, opts.numThreads, opts.overrideDataType, opts.autoCrop);
+    JXLTK_NOTICE("Finished writing %s.",
+                 shellQuote(opts.positional.back(), true).c_str());
     return EXIT_SUCCESS;
   }
 

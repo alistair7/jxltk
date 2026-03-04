@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - jxlazy: allow querying extra channel blend info.
 - jxlazy: new `unbounded` indicator to identify boxes that extend to the end of the file.
 - `add` and `subtract` command line modes.
+- `--optimize` option for `merge` mode, currently only supporting automatic frame crop.
 
 ### Fixed
 

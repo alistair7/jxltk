@@ -195,23 +195,8 @@ void writeBox(JxlEncoder* enc, const JxlBoxType boxType, const uint8_t* content,
 }  // namespace
 
 
-/**
- * Combine one or more JXLs into a single JXL.
- *
- * Ancilliary boxes on the first input file are copied to the output, but boxes
- * on all other inputs are ignored. Any boxes explicitly specified in @p
- * mergeConfig will also be included in the output.
- *
- * @param[in] mergeCfg Merge configuration, normally parsed from JSON file.
- * @param[in] output Name of the merged output file to create/overwrite.
- * @param[in] numThreads Number of threads to use, or 0 to decide automatically.
- * @param[in] forceDataType Force a specific data type to be used during
- * processing.
- *
- */
-void merge(const MergeConfig& mergeCfg, const std::string& output,
-           size_t numThreads = 0,
-           const std::optional<JxlDataType>& forceDataType = {}) {
+void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
+           const std::optional<JxlDataType>& forceDataType, bool autoCrop) {
   JXLTK_TRACE("Entered %s", __func__);
   const vector<FrameConfig>& inputs = mergeCfg.frames;
 
@@ -453,12 +438,6 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
     }
   }
 
-  std::ofstream fout(output.c_str(), std::ios::binary);
-  if (!fout) {
-    throw JxltkError("%s: Failed to open %s for writing", __func__,
-                     output.c_str());
-  }
-
   std::unique_ptr<uint8_t[]> buffer =
       JXLTK_MAKE_UNIQUE_FOR_OVERWRITE<uint8_t[]>(kDefaultIOBufferSize);
 
@@ -514,7 +493,32 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
   // Write frames
   for (size_t frameIdx = 0; frameIdx < inputs.size(); ++frameIdx) {
     Pixmap& frameBuffer = frameBuffers.at(frameIdx);
-    const FrameConfig& frameCfg = frameConfigs[frameIdx];
+    FrameConfig& frameCfg = frameConfigs[frameIdx];
+
+    if (autoCrop && frameCfg.blendMode &&
+        (*frameCfg.blendMode == JXL_BLEND_ADD ||
+         (*frameCfg.blendMode == JXL_BLEND_BLEND && encInfo.alpha_bits > 0))) {
+      bool alphaCrop = *frameCfg.blendMode == JXL_BLEND_BLEND;
+      CropRegion cropRegion;
+      if (frameBuffer.autoCrop(alphaCrop, &cropRegion)) {
+        if (cropRegion.width == 0) {
+          JXLTK_TRACE("Cropped frame %zu to nothing.", frameIdx);
+          frameCfg.blendMode = JXL_BLEND_ADD;
+          frameCfg.offset.reset();
+        } else {
+          JXLTK_INFO("Auto cropped frame [%zu].", frameIdx);
+          if (frameCfg.offset) {
+            frameCfg.offset->first += static_cast<int32_t>(cropRegion.x0);
+            frameCfg.offset->second += static_cast<int32_t>(cropRegion.y0);
+          } else {
+            frameCfg.offset = std::make_pair(static_cast<int32_t>(cropRegion.x0),
+                                             static_cast<int32_t>(cropRegion.y0));
+          }
+        }
+      } else {
+        JXLTK_DEBUG("Nothing to crop for frame [%zu].", frameIdx);
+      }
+    }
 
     JXLTK_INFO("Writing frame [%zu/%zu]: %s", frameIdx+1, inputs.size(),
                frameCfg
@@ -545,8 +549,6 @@ void merge(const MergeConfig& mergeCfg, const std::string& output,
     // Frees the pixels and the Decoder
     frameBuffer.close();
   }
-
-  JXLTK_NOTICE("Finished writing %s.", shellQuote(output, true).c_str());
 }
 
 

@@ -13,6 +13,7 @@
 #include <jxl/encode.h>
 
 #include "../contrib/jxlazy/include/jxlazy/decoder.h"
+#include "util.h"
 
 namespace jxltk {
 
@@ -96,6 +97,20 @@ class Pixmap {
    * Reset to empty, as if newly default-constructed.
    */
   void close();
+
+  /**
+   * Buffer all pixels and crop borders.
+   *
+   * If the crop would remove all pixels, this frame becomes a single pixel with all
+   * samples set to 0, and @p crop will have width = height = 0 on return.
+   *
+   * @param[in] alphaCrop If true, crop borders where alpha = 0, else crop borders where
+   *   every channel is 0.
+   * @param[out] crop The region of pixels remaining.
+   *
+   * @return Whether any crop was applied.
+   */
+  bool autoCrop(bool alphaCrop, CropRegion* crop);
 
   /**
    * Identical to @ref close, but IF this object owns a Decoder,

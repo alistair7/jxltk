@@ -242,6 +242,11 @@ Options for merge mode:
   --brotli-effort=0-11
         Effort for Brotli compression of metadata.
 
+  --optimize=X,Y,Z,...
+        Enable the specified optimizations. Currently the only supported value is 'c',
+        which allows frames to be automatically cropped when this has no visible effect
+        on the coalesced result.
+
   --duration-ms=INT
         Duration of each frame in milliseconds.
 

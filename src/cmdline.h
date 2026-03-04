@@ -19,6 +19,7 @@ namespace jxltk {
 
 struct CmdlineOpts {
   std::string mode{};
+  bool autoCrop{false};
   bool coalesce{false};
   int codestreamLevel{-1};
   bool configOnly{false};

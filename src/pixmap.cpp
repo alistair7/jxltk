@@ -186,6 +186,28 @@ void Pixmap::close() {
   decoder_.reset();
 }
 
+bool Pixmap::autoCrop(bool alphaCrop, CropRegion* crop) {
+  ensureBuffered();
+  findCropRegion(pixels_.get(), xsize_, ysize_, pixelFormat_.data_type,
+                 pixelFormat_.num_channels, alphaCrop, crop);
+  if (crop->width < xsize_ || crop->height < ysize_) {
+    if (crop->width == 0) {
+      // Replace frame with 1x1 black pixel and force kAdd.
+      memset(pixels_.get(), 0,
+             pixelFormat_.num_channels * bytesPerSample(pixelFormat_.data_type));
+      xsize_ = ysize_ = 1;
+      return true;
+    }
+    cropInPlace(pixels_.get(), xsize_, ysize_, pixelFormat_.data_type,
+                pixelFormat_.num_channels, *crop);
+    xsize_ = crop->width;
+    ysize_ = crop->height;
+    return true;
+  }
+  return false;
+}
+
+
 std::unique_ptr<jxlazy::Decoder> Pixmap::releaseDecoder() {
   close_();
   return std::move(decoder_);

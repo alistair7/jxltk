@@ -148,9 +148,12 @@ Options for split mode:
         should not specify an output directory.
 
   --data-type=u8|u16|f32
-        Force processing samples as uint8, uint16, or float type. This is mainly useful
-        to force decoding to use floats, so it doesn't clamp samples that are outside the
-        nominal [0,1] range.
+        Force processing samples as uint8, uint16, or float type. Frames that use ADD,
+        MUL, or MULADD blend modes are handled as f32 by default. For other frames, the
+        default data type is chosen based on the bit depth and precision of the input.
+        This CAN cause out-of-rage samples to be clamped to [0,1] if an unsigned type is
+        chosen - we can't detect out-of-range samples before decoding.
+        If memory usage isn't a concern, the safe option is always to use --data-type=f32.
 
   --ms
         Output frame durations in (possibly rounded) milliseconds instead of ticks in the
@@ -261,7 +264,12 @@ Options for merge mode:
         Blend mode for all frames.  Default is REPLACE.
 
   --data-type=u8|u16|f32
-        Force processing samples as uint8, uint16, or float type.
+        Force processing samples as uint8, uint16, or float type. Frames that use ADD,
+        MUL, or MULADD blend modes are handled as f32 by default. For other frames, the
+        default data type is chosen based on the bit depth and precision of the input.
+        This CAN cause out-of-rage samples to be clamped to [0,1] if an unsigned type is
+        chosen - we can't detect out-of-range samples before decoding.
+        If memory usage isn't a concern, the safe option is always to use --data-type=f32.
 
   -Y, --overwrite
         Overwrite existing files without asking.
@@ -517,6 +525,14 @@ Finished writing 'broken_clock.jxl'.
 These keys are for setting properties of the whole image, and roughly correspond to
 the "BasicInfo" and color profile in the libjxl API.
 
+`alphaFill`: Add or replace the alpha channel of this frame, setting every alpha sample
+to this floating point value, with nominal range \[0,1\].
+
+If `alphaFill` is not specified, and this input has no alpha channel, and the output
+requires an alpha channel, a default alpha channel is added to this frame automatically.
+The default alpha channel is all-1s (fully opaque) for frames that use blend modes
+"REPLACE", "BLEND", or "MUL"; and all-0s (fully transparent) for frames that use "ADD" or
+"MULADD".
 
 `boxes` / `boxDefaults`: See [`boxes` Array](#boxes-array). `boxDefaults` is an optional
 fallback box configuration - the supported keys are exactly the same as for the objects in

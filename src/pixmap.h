@@ -99,6 +99,14 @@ class Pixmap {
   void close();
 
   /**
+   * Buffer all pixels and set all alpha samples to @p fill.
+   *
+   * @param[in] fill The desired alpha value, with nominal range [0..1] (regardless
+   *   of what pixel format we're using).
+   */
+  void alphaFill(float fill);
+
+  /**
    * Buffer all pixels and crop borders.
    *
    * If the crop would remove all pixels, this frame becomes a single pixel with all
@@ -208,6 +216,14 @@ class Pixmap {
    * call one of the `setPixels` methods.
    */
   PixelPtr&& releasePixels();
+
+  /**
+   * Return whether or not the source image has an alpha channel.
+   *
+   * Even if we're using a pixel format that includes alpha, the underlying file
+   * might not have alpha.
+   */
+  bool sourceHasAlpha();
 
   /**
    * Break this class's abstraction and access the internal Decoder object,

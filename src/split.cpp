@@ -30,6 +30,24 @@ namespace jxltk {
 
 constexpr FrameConfig kJxltkDefaultFrameConfig = { .distance = 0 };
 
+namespace {
+
+bool shouldDefaultToFloat(const jxlazy::FrameInfo& frameInfo) {
+  if (frameInfo.header.layer_info.blend_info.blendmode != JXL_BLEND_REPLACE &&
+      frameInfo.header.layer_info.blend_info.blendmode != JXL_BLEND_BLEND) {
+    return true;
+  }
+  for (const JxlBlendInfo& ecBlendInfo : frameInfo.ecBlendInfo) {
+    if (ecBlendInfo.blendmode != JXL_BLEND_REPLACE &&
+        ecBlendInfo.blendmode != JXL_BLEND_BLEND) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 void split(std::string_view input, std::string_view poutputDir,
            bool coalesce = false, size_t numThreads = 0,
            const FrameConfig& frameConfig = {},
@@ -52,29 +70,15 @@ void split(std::string_view input, std::string_view poutputDir,
   jxlazy::Decoder dec;
   dec.openFile(std::string(input).c_str(), decoderFlags, decoderHints);
 
-  JxlPixelFormat decFormat;
-  dec.suggestPixelFormat(&decFormat);
-  if (forceDataType) {
-    decFormat.data_type = *forceDataType;
-  }
-
   const JxlBasicInfo decInfo = dec.getBasicInfo();
 
   JxlColorEncoding colorEncoding;
   vector<uint8_t> icc;
-  bool isGray = decInfo.num_color_channels == 1;
   if (!dec.getEncodedColorProfile(JXL_COLOR_PROFILE_TARGET_DATA, &colorEncoding)) {
     icc = dec.getIccProfile(JXL_COLOR_PROFILE_TARGET_DATA);
     if (icc.empty()) {
-      JXLTK_LOG(LogLevel::Warning, LogFlags::NoNewline,
-                "Failed to get color profile of input.");
-      if (decFormat.data_type == JXL_TYPE_UINT8 || decFormat.data_type == JXL_TYPE_UINT16) {
-        JXLTK_LOG(LogLevel::Warning, LogFlags::Continuation, " Defaulting to SRGB.");
-        JxlColorEncodingSetToSRGB(&colorEncoding, isGray);
-      } else {
-        JXLTK_LOG(LogLevel::Warning, LogFlags::Continuation, " Defaulting to linear SRGB.");
-        JxlColorEncodingSetToLinearSRGB(&colorEncoding, isGray);
-      }
+      throw JxltkError("Failed to get color profile for %s",
+                       shellQuote(input, true).c_str());
     }
   }
 
@@ -158,6 +162,16 @@ void split(std::string_view input, std::string_view poutputDir,
     }
   }
 
+  JxlPixelFormat decFormat;
+  JxlDataType suggestedDataType;
+  if (wantPixels) {
+    dec.suggestPixelFormat(&decFormat);
+    if (forceDataType) {
+      decFormat.data_type = *forceDataType;
+    }
+    suggestedDataType = decFormat.data_type;
+  }
+
   size_t frameCount = dec.frameCount();
   int filenameDigits = static_cast<int>(
                            floorf(log10f(static_cast<float>(frameCount) - 1))) + 1;
@@ -214,6 +228,14 @@ void split(std::string_view input, std::string_view poutputDir,
 
     // Decode this frame's pixels and encode to a new file
     if (wantPixels) {
+
+      decFormat.data_type = suggestedDataType;
+      if (!forceDataType && !coalesce && decFormat.data_type != JXL_TYPE_FLOAT &&
+          shouldDefaultToFloat(frameInfo)) {
+        JXLTK_TRACE("Defaulting to f32 due to blend modes.");
+        decFormat.data_type = JXL_TYPE_FLOAT;
+      }
+
       JxlEncoder* enc = encp.get();
       JxlEncoderReset(enc);
       if (runner &&
@@ -254,8 +276,10 @@ void split(std::string_view input, std::string_view poutputDir,
         frameConfig.distance.value_or(*kJxltkDefaultFrameConfig.distance)
           < kLosslessDistanceThreshold ? JXL_TRUE : JXL_FALSE;
 
-      // Check for and remove redundant alpha channel (TODO: maybe don't do this if it's named)
-      if (alphaEcIndex &&
+      // Check for and remove redundant alpha channel
+      if (alphaEcIndex && decEcInfo[*alphaEcIndex].name.empty() &&
+          (layerInfo.blend_info.blendmode == JXL_BLEND_REPLACE ||
+           layerInfo.blend_info.blendmode == JXL_BLEND_BLEND) &&
           Pixmap::isFullyOpaque(frameBuffer.data(), layerInfo.xsize,
                                 layerInfo.ysize, decFormat)) {
         if (removeInterleavedChannel(frameBuffer.data(), layerInfo.xsize,

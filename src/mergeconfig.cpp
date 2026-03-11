@@ -227,7 +227,10 @@ FrameConfig frameConfigFromJson(const nlohmann::json& frameObj,
   FrameConfig frame;
 
   for (const auto& [key, val] : frameObj.items()) {
-    if (key == "blendMode") {
+    if (key == "alphaFill") {
+      frame.alphaFill = val.get<float>();
+
+    } else if (key == "blendMode") {
       string valString = val.get<string>();
       JxlBlendMode blendMode;
       if (!blendModeFromName(valString.c_str(), &blendMode)) {
@@ -300,6 +303,9 @@ nlohmann::json frameConfigToJson(const FrameConfig& frame, bool full,
                                  const FrameConfig& frameDefaults = {}) {
   auto frameObject = nlohmann::json::object();
 
+  if (frame.alphaFill) {
+    frameObject["alphaFill"] = *frame.alphaFill;
+  }
   if (frame.blendMode) {
     frameObject["blendMode"] = blendModeName(*frame.blendMode) + 10;
   } else if (full) {
@@ -403,6 +409,7 @@ FrameConfig FrameConfig::fromJxlFrameHeader(const JxlFrameHeader &header) {
 }
 
 FrameConfig& FrameConfig::update(const FrameConfig& f) {
+  if (f.alphaFill) alphaFill = f.alphaFill;
   if (f.blendMode) blendMode = f.blendMode;
   if (f.blendSource) blendSource = f.blendSource;
   if (f.copyBoxes) copyBoxes = f.copyBoxes;
@@ -421,7 +428,8 @@ FrameConfig& FrameConfig::update(const FrameConfig& f) {
 }
 
 bool FrameConfig::isAllDefault() const {
-  return !blendMode &&
+  return !alphaFill &&
+         !blendMode &&
          !blendSource &&
          !copyBoxes &&
          !distance &&
@@ -472,6 +480,7 @@ std::string FrameConfig::toString(uint32_t frameXsize,
   }
   oss << '}';
   if (copyBoxes.value_or(false)) oss << " copyBoxes";
+  if (alphaFill) oss << " alphaFill=" << *alphaFill;
   if (name && !name->empty()) oss << " name=" << shellQuote(*name);
   if (file && !file->empty()) oss << " file=" << shellQuote(*file);
   return oss.str();

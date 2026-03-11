@@ -57,6 +57,7 @@ struct ColorConfig {
  * Also used to pass global overrides from command line.
  */
 struct FrameConfig {
+  std::optional<float> alphaFill{};
   std::optional<JxlBlendMode> blendMode{};
   std::optional<uint32_t> blendSource{};
   std::optional<bool> copyBoxes{};

@@ -110,22 +110,35 @@ std::optional<std::pair<uint32_t,uint32_t> > parseRational(const char* s);
 
 /**
  * Multiply two unsigned values and return true if no overflow occurred.
+ *
+ * @param[out] product Result of the multiplication, allowed to point to one of the
+ *   inputs.
  */
 template<typename T>
 typename std::enable_if<std::is_unsigned<T>::value, bool>::type
 safeMul(T a, T b, T* product) {
-  *product = a * b;
-  return (a == 0 || a == 1 || b == 1 || *product / a == b);
+  T result = a * b;
+  if (a == 0 || a == 1 || b == 1 || result / a == b) {
+    *product = result;
+    return true;
+  }
+  return false;
 }
 
 /**
  * Add two unsigned values and return true if no overflow occurred.
+ *
+ * @param[out] sum Result of the addition, allowed to point to one of the inputs.
  */
 template<typename T>
 typename std::enable_if<std::is_unsigned<T>::value, bool>::type
 safeAdd(T a, T b, T* sum) {
-  *sum = a + b;
-  return *sum >= a;
+  T result = a + b;
+  if (result >= a) {
+    *sum = result;
+    return true;
+  }
+  return false;
 }
 
 constexpr size_t bytesPerSample(JxlDataType t) {

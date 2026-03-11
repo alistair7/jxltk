@@ -106,6 +106,36 @@ size_t addInterleavedChannel(const void* pOldSamples, void* pNewSamples, size_t 
   throw JxltkError("Unsupported data type");
 }
 
+template<class T>
+void setInterleavedChannel(T* samples, uint32_t numChannels, uint32_t xsize,
+                           uint32_t ysize, T init, uint32_t channelIndex) {
+  for (uint32_t y = 0; y < ysize; ++y) {
+    for (uint32_t x = 0; x < xsize; ++x, samples += numChannels) {
+      samples[channelIndex] = init;
+    }
+  }
+}
+
+void setInterleavedChannel(void* samples, uint32_t numChannels, JxlDataType dataType,
+                           uint32_t xsize, uint32_t ysize, float init,
+                           uint32_t channelIndex) {
+  if (dataType == JXL_TYPE_UINT8) {
+    setInterleavedChannel<uint8_t>(static_cast<uint8_t*>(samples), numChannels, xsize,
+                                   ysize, static_cast<uint8_t>(roundf(init * 255.f)),
+                                   channelIndex);
+  } else if (dataType == JXL_TYPE_UINT16) {
+    setInterleavedChannel<uint16_t>(static_cast<uint16_t*>(samples), numChannels, xsize,
+                                    ysize, static_cast<uint16_t>(roundf(init * 65535.f)),
+                                    channelIndex);
+  } else if (dataType == JXL_TYPE_FLOAT) {
+    setInterleavedChannel<float>(static_cast<float*>(samples), numChannels, xsize,
+                                 ysize, init, channelIndex);
+  } else {
+    throw JxltkError("Unsupported data type");
+  }
+}
+
+
 /**
  * Throw an exception if @p bytes is less than the minimum required buffer size.
  */
@@ -184,6 +214,33 @@ void Pixmap::close_() {
 void Pixmap::close() {
   close_();
   decoder_.reset();
+}
+
+void Pixmap::alphaFill(float fill) {
+  if (pixels_) {
+    if (pixelFormat_.num_channels != 2 && pixelFormat_.num_channels != 4) {
+      JxlPixelFormat newFormat = pixelFormat_;
+      ++newFormat.num_channels;
+      auto newPixels = makePixelPtr(xsize_, ysize_, newFormat);
+      size_t newSize = static_cast<size_t>(xsize_) * ysize_ *
+                       bytesPerSample(newFormat.data_type);
+      if (!safeMul(newSize, static_cast<size_t>(newFormat.num_channels), &newSize)) {
+        throw JxltkError("Too many samples");
+      }
+      addInterleavedChannel(pixels_.get(), newPixels.get(), newSize,
+                            fill, newFormat, xsize_, ysize_, pixelFormat_.num_channels);
+      pixels_ = std::move(newPixels);
+      pixelFormat_ = newFormat;
+      return;
+    }
+  } else {
+    if (pixelFormat_.num_channels != 2 && pixelFormat_.num_channels != 4) {
+      ++pixelFormat_.num_channels;
+    }
+    ensureBuffered();
+  }
+  setInterleavedChannel(pixels_.get(), pixelFormat_.num_channels, pixelFormat_.data_type,
+                        xsize_, ysize_, fill, pixelFormat_.num_channels - 1);
 }
 
 bool Pixmap::autoCrop(bool alphaCrop, CropRegion* crop) {
@@ -397,6 +454,14 @@ size_t Pixmap::getBufferSize() const {
 PixelPtr&& Pixmap::releasePixels() {
   ensureBuffered();
   return std::move(pixels_);
+}
+
+bool Pixmap::sourceHasAlpha() {
+  if (pixels_ && !decoder_) {
+    return pixelFormat_.num_channels == 2 || pixelFormat_.num_channels == 4;
+  }
+  ensureDecoder_();
+  return decoder_->getBasicInfo().alpha_bits > 0;
 }
 
 

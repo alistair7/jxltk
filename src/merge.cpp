@@ -94,35 +94,6 @@ ColorProfile getColorProfile(const char* filename) {
   return {};
 }
 
-/**
- * Scan a set of JXL files and return a suitable format to use for processing
- * their pixels.  i.e. the smallest format that preserves the declared bit depth
- * and channel count of all inputs.
- * NOTE: out-of-range samples are not detected, so it's possible this will suggest
- * a pixel format that causes these values to be clamped.
- */
-JxlPixelFormat suggestFormat(vector<std::unique_ptr<jxlazy::Decoder> >& decoders) {
-  JxlPixelFormat format = {.num_channels = 1,
-                           .data_type = JXL_TYPE_UINT8,
-                           .endianness = JXL_NATIVE_ENDIAN,
-                           .align = 0};
-  bool needAlpha = false;
-  for (auto& decPtr : decoders) {
-    if (!decPtr) continue;
-    JxlPixelFormat thisFormat;
-    decPtr->suggestPixelFormat(&thisFormat);
-    needAlpha = needAlpha ||
-                (thisFormat.num_channels == 2 || thisFormat.num_channels == 4);
-    format.num_channels = std::max(format.num_channels, thisFormat.num_channels);
-    format.data_type =
-        dataTypeRank(thisFormat.data_type) > dataTypeRank(format.data_type) ?
-            thisFormat.data_type : format.data_type;
-  }
-  if (needAlpha && (format.num_channels == 1 || format.num_channels == 3)) {
-    format.num_channels++;
-  }
-  return format;
-}
 
 /**
  * Get the ticks per second required for the resulting animation.
@@ -361,15 +332,6 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
     JXLTK_NOTICE("Using default sRGB color profile.");
   }
 
-  // Decide the best common pixel format to use
-  JxlPixelFormat pixelFormat = suggestFormat(frameDecoders);
-  if (forceDataType) {
-    pixelFormat.data_type = *forceDataType;
-  } else if (mergeCfg.dataType) {
-    pixelFormat.data_type = *mergeCfg.dataType;
-  }
-  JXLTK_DEBUG("Working with pixel format %s", toString(pixelFormat).c_str());
-
   if (encInfo.have_animation) {
     encInfo.animation.num_loops = mergeCfg.loops.value_or(0);
     if (!suggestTicksPerSecond(mergeCfg,
@@ -386,11 +348,34 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
   for (size_t i = 0; i < inputs.size(); i++) {
     std::unique_ptr<jxlazy::Decoder>& frameDecPtr = frameDecoders.at(i);
     if (frameDecPtr) {
+      // Decide the pixel format to use for this frame
+      const FrameConfig& frameCfg = frameConfigs[i];
+      JxlPixelFormat pixelFormat;
+      frameDecPtr->suggestPixelFormat(&pixelFormat);
+      if (encInfo.alpha_bits > 0 &&
+          (pixelFormat.num_channels == 3 || pixelFormat.num_channels == 1)) {
+        ++pixelFormat.num_channels;
+      }
+      if (forceDataType) {
+        pixelFormat.data_type = *forceDataType;
+      } else if (mergeCfg.dataType) {
+        pixelFormat.data_type = *mergeCfg.dataType;
+      } else if (frameCfg.blendMode && *frameCfg.blendMode != JXL_BLEND_REPLACE &&
+                 *frameCfg.blendMode != JXL_BLEND_BLEND) {
+        pixelFormat.data_type = JXL_TYPE_FLOAT;
+      }
+      JXLTK_DEBUG("Frame %zu pixel format: %s", i, toString(pixelFormat).c_str());
+
       frameBuffers.emplace_back(std::move(frameDecPtr), 0, pixelFormat);
     } else {
       // Missing decoders are inputs that had no filename.
       // Construct 1x1 black transparent frames for these.
-      frameBuffers.push_back(Pixmap::blackPixel(pixelFormat));
+      static const JxlPixelFormat minimalPixelFormat = {
+        .num_channels = encInfo.num_color_channels + (encInfo.alpha_bits > 0 ? 1 : 0),
+        .data_type = JXL_TYPE_UINT8,
+        .endianness = JXL_NATIVE_ENDIAN,
+        .align = 0 };
+      frameBuffers.push_back(Pixmap::blackPixel(minimalPixelFormat));
     }
     if (autoSizeCanvas) {
       const auto& optOffset = frameConfigs[i].offset;
@@ -495,10 +480,29 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
     Pixmap& frameBuffer = frameBuffers.at(frameIdx);
     FrameConfig& frameCfg = frameConfigs[frameIdx];
 
+    // - If caller requested an alphaFill, set it now.
+    // - Else if output requires alpha but input had none, try to set alpha to the
+    //   "least surprising" value for the blend mode. (1.0 for kReplace, kBlend, and kMul;
+    //   0.0 for kAdd and kMulAdd).
+    // libjxl will fill a default alpha channel with 1.0, so we can skip this in some
+    // cases. Do this before autocrop, as it affects which pixels are meaningful when
+    // blending.
+    bool autoAlpha = encInfo.alpha_bits > 0 && !frameBuffer.sourceHasAlpha();
+    if ((frameCfg.alphaFill && (!autoAlpha || *frameCfg.alphaFill != 1.f)) ||
+        (autoAlpha && frameCfg.blendMode &&
+         (*frameCfg.blendMode == JXL_BLEND_ADD ||
+          *frameCfg.blendMode == JXL_BLEND_MULADD))) {
+      float alphaFill = frameCfg.alphaFill ? *frameCfg.alphaFill : 0.f;
+      JXLTK_TRACE("Set all alpha samples to %f for frame %zu.", alphaFill, frameIdx);
+      frameBuffer.alphaFill(alphaFill);
+    }
+
     if (autoCrop && frameCfg.blendMode &&
         (*frameCfg.blendMode == JXL_BLEND_ADD ||
-         (*frameCfg.blendMode == JXL_BLEND_BLEND && encInfo.alpha_bits > 0))) {
-      bool alphaCrop = *frameCfg.blendMode == JXL_BLEND_BLEND;
+         ((*frameCfg.blendMode == JXL_BLEND_BLEND ||
+           *frameCfg.blendMode == JXL_BLEND_MULADD) &&
+          encInfo.alpha_bits > 0))) {
+      bool alphaCrop = *frameCfg.blendMode != JXL_BLEND_ADD;
       CropRegion cropRegion;
       if (frameBuffer.autoCrop(alphaCrop, &cropRegion)) {
         if (cropRegion.width == 0) {
@@ -506,7 +510,7 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
           frameCfg.blendMode = JXL_BLEND_ADD;
           frameCfg.offset.reset();
         } else {
-          JXLTK_INFO("Auto cropped frame [%zu].", frameIdx);
+          JXLTK_DEBUG("Auto cropped frame [%zu].", frameIdx);
           if (frameCfg.offset) {
             frameCfg.offset->first += static_cast<int32_t>(cropRegion.x0);
             frameCfg.offset->second += static_cast<int32_t>(cropRegion.y0);

@@ -352,7 +352,8 @@ int findCropRegion(const T* psamples, uint32_t xsize, uint32_t ysize,
                    size_t numChannels, bool alphaCrop, CropRegion* cropRegion,
                    const CropRegion* protectRegion) {
 
-  JXLTK_TRACE("%" PRIu32 "x%" PRIu32 "; %zu channels", xsize, ysize, numChannels);
+  JXLTK_TRACE("%" PRIu32 "x%" PRIu32 "; %zu channels; alphaCrop=%d", xsize, ysize,
+              numChannels, alphaCrop ? 1 : 0);
   if (xsize == 0 || ysize == 0 || numChannels == 0) {
     JXLTK_ERROR("Invalid arguments to %s", __func__);
     cropRegion->x0 = cropRegion->y0 = cropRegion->width = cropRegion->height = 0;

@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-#include "src/log.h"
 
 #include <gtest/gtest.h>
 
@@ -37,7 +36,7 @@ TEST(Merge, AutoCrop) {
   std::string jxlBytes;
   {
     std::ostringstream oss;
-    jxltk::merge(mergeCfg, oss, 0, {}, false);
+    jxltk::merge(mergeCfg, oss, 0, false);
     jxlBytes = oss.str();
   }
 
@@ -61,7 +60,7 @@ TEST(Merge, AutoCrop) {
 
   {
     std::ostringstream oss;
-    jxltk::merge(mergeCfg, oss, 0, {}, true);
+    jxltk::merge(mergeCfg, oss, 0, true);
     jxlBytes = oss.str();
   }
 

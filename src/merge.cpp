@@ -167,7 +167,7 @@ void writeBox(JxlEncoder* enc, const JxlBoxType boxType, const uint8_t* content,
 
 
 void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
-           const std::optional<JxlDataType>& forceDataType, bool autoCrop) {
+           bool autoCrop) {
   JXLTK_TRACE("Entered %s", __func__);
   const vector<FrameConfig>& inputs = mergeCfg.frames;
 
@@ -356,9 +356,7 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
           (pixelFormat.num_channels == 3 || pixelFormat.num_channels == 1)) {
         ++pixelFormat.num_channels;
       }
-      if (forceDataType) {
-        pixelFormat.data_type = *forceDataType;
-      } else if (mergeCfg.dataType) {
+      if (mergeCfg.dataType) {
         pixelFormat.data_type = *mergeCfg.dataType;
       } else if (frameCfg.blendMode && *frameCfg.blendMode != JXL_BLEND_REPLACE &&
                  *frameCfg.blendMode != JXL_BLEND_BLEND) {

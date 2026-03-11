@@ -110,6 +110,9 @@ int main_(int argc, char** argv) {
     if (opts.overrideTps) {
       mergeOp.tps = opts.overrideTps;
     }
+    if (opts.overrideDataType) {
+      mergeOp.dataType = *opts.overrideDataType;
+    }
     for (FrameConfig& frameCfg : mergeOp.frames) {
       frameCfg.update(opts.overrideFrameConfig);
     }
@@ -137,7 +140,7 @@ int main_(int argc, char** argv) {
       return EXIT_FAILURE;
     }
 
-    merge(mergeOp, fout, opts.numThreads, opts.overrideDataType, opts.autoCrop);
+    merge(mergeOp, fout, opts.numThreads, opts.autoCrop);
     JXLTK_NOTICE("Finished writing %s.",
                  shellQuote(opts.positional.back(), true).c_str());
     return EXIT_SUCCESS;

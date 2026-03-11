@@ -8,7 +8,6 @@
 #define JXLTK_MERGE_H_
 
 #include <iostream>
-#include <optional>
 
 #include <jxl/types.h>
 
@@ -22,13 +21,12 @@ namespace jxltk {
  * @param[in] mergeCfg Merge configuration, normally parsed from JSON file.
  * @param[in] fout Open stream where the result will be written.
  * @param[in] numThreads Number of threads to use, or 0 to decide automatically.
- * @param[in] forceDataType Force a specific data type to be used during processing.
  * @param[in] autoCrop Trim fully-transparent borders (for alpha-blended frames) and
  *   all-zero borders (for kAdded frames), reducing the number of pixels without altering
  *   the appearance of the result.
  */
 void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads = 0,
-           const std::optional<JxlDataType>& forceDataType = {}, bool autoCrop = false);
+           bool autoCrop = false);
 
 }  // namespace jxltk
 

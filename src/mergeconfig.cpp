@@ -272,6 +272,9 @@ FrameConfig frameConfigFromJson(const nlohmann::json& frameObj,
     } else if (key == "effort") {
       frame.effort = val.get<int32_t>();
 
+    } else if (key == "fasterDecoding") {
+      frame.fasterDecoding = val.get<int32_t>();
+
     } else if (key == "file") {
       frame.file = val.get<string>();
 
@@ -336,6 +339,11 @@ nlohmann::json frameConfigToJson(const FrameConfig& frame, bool full,
     frameObject["effort"] = *frame.effort;
   } else if (full) {
     frameObject["effort"] = frameDefaults.effort.value_or(-1);
+  }
+  if (frame.fasterDecoding) {
+    frameObject["fasterDecoding"] = *frame.fasterDecoding;
+  } else if (full) {
+    frameObject["fasterDecoding"] = frameDefaults.fasterDecoding.value_or(0);
   }
   if (frame.file) {
     frameObject["file"] = *frame.file;
@@ -417,6 +425,7 @@ FrameConfig& FrameConfig::update(const FrameConfig& f) {
   if (f.durationMs) durationMs = f.durationMs;
   if (f.durationTicks) durationTicks = f.durationTicks;
   if (f.effort) effort = f.effort;
+  if (f.fasterDecoding) fasterDecoding = f.fasterDecoding;
   if (f.file) file = f.file;
   if (f.maPrevChannels) maPrevChannels = f.maPrevChannels;
   if (f.maTreeLearnPct) maTreeLearnPct = f.maTreeLearnPct;
@@ -436,6 +445,7 @@ bool FrameConfig::isAllDefault() const {
          !durationMs &&
          !durationTicks &&
          !effort &&
+         !fasterDecoding &&
          !file &&
          !maPrevChannels &&
          !maTreeLearnPct &&
@@ -481,6 +491,7 @@ std::string FrameConfig::toString(uint32_t frameXsize,
   oss << '}';
   if (copyBoxes.value_or(false)) oss << " copyBoxes";
   if (alphaFill) oss << " alphaFill=" << *alphaFill;
+  if (fasterDecoding.value_or(0) > 0) oss << " fastDec=" << *fasterDecoding;
   if (name && !name->empty()) oss << " name=" << shellQuote(*name);
   if (file && !file->empty()) oss << " file=" << shellQuote(*file);
   return oss.str();

@@ -71,14 +71,16 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
     JxlEncoderFrameSettingId settingId;
     const std::optional<int32_t>& value;
   } int32Settings[] = {
+    { "BROTLI_EFFORT", JXL_ENC_FRAME_SETTING_BROTLI_EFFORT, brotliEffort },
+    { "DECODING_SPEED", JXL_ENC_FRAME_SETTING_DECODING_SPEED,
+      frameConfig.fasterDecoding },
     { "EFFORT", JXL_ENC_FRAME_SETTING_EFFORT, frameConfig.effort },
-    { "MODULAR_NB_PREV_CHANNELS", JXL_ENC_FRAME_SETTING_MODULAR_NB_PREV_CHANNELS,
-       frameConfig.maPrevChannels },
     { "MODULAR_MA_TREE_LEARNING_PERCENT",
       JXL_ENC_FRAME_SETTING_MODULAR_MA_TREE_LEARNING_PERCENT,
       frameConfig.maTreeLearnPct },
+    { "MODULAR_NB_PREV_CHANNELS", JXL_ENC_FRAME_SETTING_MODULAR_NB_PREV_CHANNELS,
+       frameConfig.maPrevChannels },
     { "PATCHES", JXL_ENC_FRAME_SETTING_PATCHES, frameConfig.patches },
-    { "BROTLI_EFFORT", JXL_ENC_FRAME_SETTING_BROTLI_EFFORT, brotliEffort },
   };
   for (const auto& s : int32Settings) {
     if (s.value && *s.value != -1 &&

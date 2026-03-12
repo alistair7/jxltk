@@ -64,6 +64,8 @@ constexpr CommandLineOption commandLineOptions[] = {
    "Butteraugli distance for encoded files. Default is 0 (lossless)." },
   {"effort", 'e', HelpSection::EncodeOptions, "1-" JXLTK_ITOA(JXLTK_MAX_EFFORT),
    "Encoding effort.  Default is whatever libjxl decides." },
+  {"faster-decoding", '\0', HelpSection::EncodeOptions, "0-4",
+   "Produce files that decode faster (higher values inflate the file size more)." },
   {"compress-boxes", '\0', HelpSection::Merge|HelpSection::Gen, "0|1",
    "Globally disable (0) or enable (1) Brotli compression of metadata boxes." },
   {"brotli-effort", '\0', HelpSection::Merge|HelpSection::Gen, "0-11",
@@ -477,6 +479,16 @@ CmdlineOpts parseArgs(int argc, char** argv) {
                     shellQuote(options.optarg, true).c_str());
         exit(EXIT_FAILURE);
       }
+
+    } else if (strcmp(longName, "faster-decoding") == 0) {
+      int decodingSpeed = atoi(options.optarg);
+      if (decodingSpeed < 0 || decodingSpeed > 4) {
+        JXLTK_ERROR("Invalid argument to --faster-decoding: %s;\n"
+                    "Valid values are 0-4.",
+                    shellQuote(options.optarg, true).c_str());
+        exit(EXIT_FAILURE);
+      }
+      opts.overrideFrameConfig.fasterDecoding = decodingSpeed;
 
     } else if (strcmp(longName, "level") == 0) {
       opts.codestreamLevel = atoi(options.optarg);

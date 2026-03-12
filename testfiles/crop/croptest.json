@@ -19,6 +19,7 @@
     },
     {
       "blendMode": "ADD",
+      "fasterDecoding": 1,
       "file": "frame2_add.jxl"
     },
     {

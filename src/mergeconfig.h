@@ -65,6 +65,7 @@ struct FrameConfig {
   std::optional<uint32_t> durationMs{};
   std::optional<uint32_t> durationTicks{};
   std::optional<int32_t> effort{};
+  std::optional<int32_t> fasterDecoding{};
   std::optional<std::string> file{};
   std::optional<int32_t> maPrevChannels{};
   std::optional<int32_t> maTreeLearnPct{};

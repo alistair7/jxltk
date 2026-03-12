@@ -151,7 +151,8 @@ int main_(int argc, char** argv) {
     split(opts.positional[0],
           opts.positional.size() > 1 ? opts.positional[1] : std::string(),
           opts.coalesce,
-          opts.numThreads, opts.overrideFrameConfig, {}, !opts.configOnly,
+          opts.numThreads, opts.overrideFrameConfig, opts.overrideDataType,
+          !opts.configOnly,
           !opts.configOnly,
           opts.configOnly ? "-" : "merge.json", !opts.useMilliseconds,
           opts.fullConfig);

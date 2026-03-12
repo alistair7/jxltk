@@ -12,6 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - jxlazy: new `unbounded` indicator to identify boxes that extend to the end of the file.
 - `add` and `subtract` command line modes.
 - `--optimize` option for `merge` mode, currently only supporting automatic frame crop.
+- `compare` command line mode.
+- `alphaFill` JSON key.
+
+### Changed
+
+- Logic for deciding default data type used for samples has changed to be slightly
+  more cautious if "unusual" blending is used.  (It defaults to float more often.)
+- Implicit alpha channels added during a merge operation are initialised to subjectively
+  more useful values when `alphaFill` isn't specified.
 
 ### Fixed
 

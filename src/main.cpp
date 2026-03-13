@@ -140,7 +140,7 @@ int main_(int argc, char** argv) {
       return EXIT_FAILURE;
     }
 
-    merge(mergeOp, fout, opts.numThreads, opts.autoCrop);
+    merge(mergeOp, fout, opts.numThreads, opts.autoCrop, opts.unPremultiplyAlpha);
     JXLTK_NOTICE("Finished writing %s.",
                  shellQuote(opts.positional.back(), true).c_str());
     return EXIT_SUCCESS;

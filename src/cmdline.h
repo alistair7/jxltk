@@ -23,6 +23,7 @@ struct CmdlineOpts {
   bool coalesce{false};
   int codestreamLevel{-1};
   bool configOnly{false};
+  bool unPremultiplyAlpha{false};
   bool useMilliseconds{false};
   bool fullConfig{false};
   size_t numThreads{0};

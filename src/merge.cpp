@@ -167,7 +167,7 @@ void writeBox(JxlEncoder* enc, const JxlBoxType boxType, const uint8_t* content,
 
 
 void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
-           bool autoCrop) {
+           bool autoCrop, bool unPremultiplyAlpha) {
   JXLTK_TRACE("Entered %s", __func__);
   const vector<FrameConfig>& inputs = mergeCfg.frames;
 
@@ -227,6 +227,9 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
   bool checkColorProfiles = !color;
   bool savedRef3 = false;
   bool patchesRequested = false;
+  // true/false if premultiplied alpha is required/prohibited.
+  // nullopt if we're unpremultiplying, or both options are still available.
+  std::optional<bool> alphaPremultipliedSetting;
   size_t totalBoxes = mergeCfg.boxes.size();
 
   vector<std::unique_ptr<jxlazy::Decoder> > frameDecoders;
@@ -271,10 +274,33 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
       uint32_t hints = copyBoxes ?
                            static_cast<uint32_t>(jxlazy::DecoderHint::WantBoxes) : 0;
       // TODO: allow control over buffering argument
-      // TODO: allow control over unpremultiply alpha (but make sure all inputs use the same setting)
       frameDecoder->openFile(frameCfg.file->c_str(),
-                             jxlazy::DecoderFlag::UnpremultiplyAlpha,
+                             unPremultiplyAlpha ?
+                                 jxlazy::DecoderFlag::UnpremultiplyAlpha :
+                                 static_cast<jxlazy::DecoderFlag>(0),
                              hints);
+      JxlBasicInfo bi = frameDecoder->getBasicInfo();
+      // If this is the first JXL input (`!color`), inherit some details from the
+      // basic info. If we're not unpremultiplying alpha, make sure this JXL input matches
+      // the alpha type of any previous inputs.
+      if (!color) {
+        encInfo.intensity_target = bi.intensity_target;
+        encInfo.min_nits = bi.min_nits;
+        encInfo.linear_below = bi.linear_below;
+        encInfo.relative_to_max_display = bi.relative_to_max_display;
+      }
+      if (bi.alpha_bits > 0 && !unPremultiplyAlpha) {
+        if (alphaPremultipliedSetting) {
+          if (bi.alpha_premultiplied != *alphaPremultipliedSetting) {
+            throw JxltkError("Can't mix straight alpha with premultiplied alpha");
+          }
+        } else {
+          alphaPremultipliedSetting =
+              (encInfo.alpha_premultiplied = bi.alpha_premultiplied) == JXL_TRUE;
+          JXLTK_TRACE("Locked into %s alpha.",
+                      *alphaPremultipliedSetting ? "premultiplied" : "straight");
+        }
+      }
       if (copyBoxes) {
         size_t boxCount = countNonReservedBoxes(*frameDecoder);
         if (boxCount > 0) {
@@ -289,7 +315,6 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
         JXLTK_WARNING("File %s has (non-main-alpha) extra channels - "
                       "these will be ignored.", shellQuote(*frameCfg.file, true).c_str());
       }
-      JxlBasicInfo bi = frameDecoder->getBasicInfo();
       encInfo.bits_per_sample = std::max(encInfo.bits_per_sample, bi.bits_per_sample);
       encInfo.exponent_bits_per_sample = std::max(encInfo.exponent_bits_per_sample, bi.exponent_bits_per_sample);
       encInfo.alpha_bits = std::max(encInfo.alpha_bits, bi.alpha_bits);
@@ -409,6 +434,17 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
   JXLTK_INFO("Writing basic info: %s", toString(encInfo).c_str());
   if (JxlEncoderSetBasicInfo(enc, &encInfo) != JXL_ENC_SUCCESS) {
     throw JxltkError("%s: Failed in JxlEncoderSetBasicInfo", __func__);
+  }
+  if (alphaPremultipliedSetting.value_or(false)) {
+    // Setting alpha_premultiplied in the basic info isn't sufficient.
+    JxlExtraChannelInfo alphaInfo;
+    JxlEncoderInitExtraChannelInfo(JXL_CHANNEL_ALPHA, &alphaInfo);
+    alphaInfo.alpha_premultiplied = JXL_TRUE;
+    alphaInfo.bits_per_sample = encInfo.alpha_bits;
+    alphaInfo.exponent_bits_per_sample = encInfo.alpha_exponent_bits;
+    if (JxlEncoderSetExtraChannelInfo(enc, 0, &alphaInfo) != JXL_ENC_SUCCESS) {
+      throw JxltkError("%s: Failed in JxlEncoderSetExtraChannelInfo", __func__);
+    }
   }
   if (color->enc) {
     if (JxlEncoderSetColorEncoding(enc, &*color->enc) != JXL_ENC_SUCCESS) {

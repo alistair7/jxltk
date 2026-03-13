@@ -280,6 +280,10 @@ Options for merge mode:
 
   --level=5|10
         Explicitly set the codestream conformance level.
+
+  --unpremultiply
+        Convert premultiplied (associated) alpha to straight alpha.
+
 ```
 
 ### `icc` Mode

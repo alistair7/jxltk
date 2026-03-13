@@ -111,6 +111,8 @@ constexpr CommandLineOption commandLineOptions[] = {
    "Explicitly set the codestream conformance level." },
   {"threads", '\0', HelpSection::All, "N", "Maximum number of threads to use. Default is"
    " '0', meaning choose automatically." },
+  {"unpremultiply", '\0', HelpSection::Merge, nullptr,
+   "Convert premultiplied (associated) alpha to straight alpha."},
   {"no-754", '\0', HelpSection::All, nullptr, nullptr },
 };
 
@@ -495,6 +497,9 @@ CmdlineOpts parseArgs(int argc, char** argv) {
 
     } else if (strcmp(longName, "ms") == 0) {
       opts.useMilliseconds = true;
+
+    } else if (strcmp(longName, "unpremultiply") == 0) {
+      opts.unPremultiplyAlpha = true;
 
     } else if (strcmp(longName, "full") == 0) {
       opts.fullConfig = true;

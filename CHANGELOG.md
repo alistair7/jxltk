@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `--optimize` option for `merge` mode, currently only supporting automatic frame crop.
 - `compare` command line mode.
 - `alphaFill` JSON key.
+- Preserve premultiplied alpha when merging, and add `--unpremultiply` option to remove
+  it.
 
 ### Changed
 

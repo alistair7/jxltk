@@ -24,9 +24,11 @@ namespace jxltk {
  * @param[in] autoCrop Trim fully-transparent borders (for alpha-blended frames) and
  *   all-zero borders (for kAdded frames), reducing the number of pixels without altering
  *   the appearance of the result.
+ * @param[in] unPremultiplyAlpha Convert associated alpha to straight alpha. Required
+ *   to be true if the inputs use a mixture of straight and associated alpha.
  */
 void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads = 0,
-           bool autoCrop = false);
+           bool autoCrop = false, bool unPremultiplyAlpha = true);
 
 }  // namespace jxltk
 

@@ -12,6 +12,8 @@
 #include <gtest/gtest.h>
 
 #include <jxlazy/decoder.h>
+
+#include "except.h"
 #include "merge.h"
 
 static std::string getPath(std::string_view s) {
@@ -200,4 +202,52 @@ TEST(Merge, AlphaFill) {
   framePixels = dec.getFramePixels<float>(6, numChannels);
   assertLastChannelUniform(framePixels.color.data(), frameInfo.header.layer_info.xsize,
                            frameInfo.header.layer_info.ysize, numChannels, 1.f);
+}
+
+TEST(Merge, Premultiplied) {
+
+  jxltk::MergeConfig mergeCfg;
+  mergeCfg.frameDefaults.effort = 1;
+
+  // Merging all-premultiplied inputs is fine
+  jxltk::FrameConfig* frameCfg;
+  frameCfg = &mergeCfg.frames.emplace_back();
+  frameCfg->file = getPath("premul.jxl");
+  frameCfg = &mergeCfg.frames.emplace_back();
+  frameCfg->file = getPath("premul.jxl");
+  mergeCfg.frames.emplace_back();
+
+  std::string jxlBytes;
+  {
+    std::ostringstream oss;
+    jxltk::merge(mergeCfg, oss, 0, false, /*unPremultiplyAlpha=*/false);
+    jxlBytes = oss.str();
+  }
+  jxlazy::Decoder dec;
+  dec.openMemory(reinterpret_cast<const uint8_t*>(jxlBytes.data()), jxlBytes.size(),
+                 jxlazy::DecoderFlag::NoCoalesce,
+                 jxlazy::DecoderHint::NoColorProfile|jxlazy::DecoderHint::NoPixels);
+  EXPECT_EQ(dec.frameCount(), 3);
+  EXPECT_EQ(dec.getBasicInfo().alpha_premultiplied, JXL_TRUE);
+
+
+  // Mixing straight with premultiplied only works with unpremultiply enabled
+
+  mergeCfg.frames[0].file = getPath("subtract/frame0.jxl");
+  {
+    std::ostringstream oss;
+    jxltk::merge(mergeCfg, oss, 0, false, /*unPremultiplyAlpha=*/true);
+    jxlBytes = oss.str();
+  }
+  dec.openMemory(reinterpret_cast<const uint8_t*>(jxlBytes.data()), jxlBytes.size(),
+                 jxlazy::DecoderFlag::NoCoalesce,
+                 jxlazy::DecoderHint::NoColorProfile|jxlazy::DecoderHint::NoPixels);
+  EXPECT_EQ(dec.frameCount(), 3);
+  EXPECT_EQ(dec.getBasicInfo().alpha_premultiplied, JXL_FALSE);
+
+  {
+    std::ostringstream oss;
+    EXPECT_THROW(jxltk::merge(mergeCfg, oss, 0, false, /*unPremultiplyAlpha=*/false),
+                 jxltk::JxltkError);
+  }
 }

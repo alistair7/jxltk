@@ -78,24 +78,24 @@ constexpr CommandLineOption commandLineOptions[] = {
   {"modular-nb-prev-channels", 'E', HelpSection::EncodeOptions, "INT",
    "Number of previous channels modular mode is allowed to reference."},
   {"iterations", 'I', HelpSection::EncodeOptions, "0-100",
-   "Percentage of pixels used to learn MA trees in modular mode. "
-   "Default is whatever libjxl decides."},
+   "Percentage of pixels used to learn MA trees in modular mode.\n"
+   "\tDefault is whatever libjxl decides."},
   {"optimize", '\0', HelpSection::Merge, "X,Y,Z,...",
-   "Enable the specified optimizations. Currently the only supported value is 'c',"
-   " which allows frames to be automatically cropped when this has no visible effect"
-   " on the coalesced result."},
+   "Enable the specified optimizations. Currently the only supported value is 'c',\n"
+   "\twhich allows frames to be automatically cropped when this has no visible effect\n"
+   "\ton the coalesced result."},
   {"patches", '\0', HelpSection::EncodeOptions, "0|1",
-   "Enable (1) or disable (0) automatic patch generation for all frames. "
-   "Default is whatever libjxl decides."},
+   "Enable (1) or disable (0) automatic patch generation for all frames.\n"
+   "\tDefault is whatever libjxl decides."},
   {"duration-ms", '\0', HelpSection::Merge|HelpSection::Gen, "INT",
    "Duration of each frame in milliseconds." },
   {"duration-ticks", '\0', HelpSection::Merge|HelpSection::Gen, "INT",
    "Duration of each frame in ticks." },
   {"ticks-per-second", 'r', HelpSection::Merge|HelpSection::Gen, "N[/D]",
-   "Number of animation ticks per second, given as an integer or rational. "
-   "Default is 100 if processing an animation."},
+   "Number of animation ticks per second, given as an integer or rational.\n"
+   "\tDefault is 100 if processing an animation."},
   {"blend-mode", '\0', HelpSection::Merge|HelpSection::Gen, "REPLACE/BLEND/ADD/MUL/MULADD",
-   "Blend mode for all frames.  Default is REPLACE."},
+   "Blend mode for all frames. Default is REPLACE."},
   {"data-type", '\0', HelpSection::Merge|HelpSection::Split, "u8|u16|f32",
    "Force processing samples as uint8, uint16, or float type."},
   {"ms", '\0', HelpSection::Split, nullptr,
@@ -207,10 +207,10 @@ static void printHelp(HelpSection sec) {
   if ((sec & HelpSection::Compare)) {
     cerr << "\nCOMPARE MODE\n\n"
             "\tjxltk compare [opts] input1.jxl input2.jxl\n\n"
-            "  Check whether two JXLs contain the same pixel values across all frames and"
-            "  channels, ignoring color profiles and frame durations. Each channel is"
-            "  compared using the higher of the two bit depths. The exit status will be 0"
-            "  if all the pixels match.\n\n"
+            "  Check whether two JXLs contain the same pixel values across all frames\n"
+            "  and channels, ignoring color profiles and frame durations. Each channel\n"
+            "  is compared using the higher of the two bit depths. The exit status will\n"
+            "  be 0 if all the pixels match.\n\n"
             "  Options for compare mode:\n\n";
     printSection(HelpSection::Compare, HelpSection::All);
   }

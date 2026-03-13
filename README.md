@@ -97,6 +97,9 @@ These can be used in any command.
   --threads=N
         Maximum number of threads to use for encoding/decoding.
         Default is '0', meaning choose automatically.
+
+  -Y, --overwrite
+        Overwrite existing files without asking.
 ```
 
 ### Common encoding options
@@ -162,8 +165,6 @@ Options for split mode:
   --full
         Generate "full" merge config, with fewer implied defaults.
 
-  -Y, --overwrite
-        Overwrite existing files without asking.
 ```
 
 Given the following animation...
@@ -270,9 +271,6 @@ Options for merge mode:
         This CAN cause out-of-rage samples to be clamped to [0,1] if an unsigned type is
         chosen - we can't detect out-of-range samples before decoding.
         If memory usage isn't a concern, the safe option is always to use --data-type=f32.
-
-  -Y, --overwrite
-        Overwrite existing files without asking.
 
   --color-from=FILE
         Assign the color profile from the named JXL or ICC file. Pixels are reinterpreted,

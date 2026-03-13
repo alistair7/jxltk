@@ -102,7 +102,7 @@ constexpr CommandLineOption commandLineOptions[] = {
    "Output frame durations in (possibly rounded) milliseconds instead of ticks."},
   {"full", '\0', HelpSection::Split|HelpSection::Gen, nullptr,
    "Generate \"full\" merge config, with fewer implied defaults."},
-  {"overwrite", 'Y', HelpSection::Split|HelpSection::Merge|HelpSection::Icc, nullptr,
+  {"overwrite", 'Y', HelpSection::All, nullptr,
    "Overwrite existing files without asking."},
   {"color-from", '\0', HelpSection::Merge|HelpSection::Gen, "FILE",
    "Assign the color profile from the named JXL or ICC file." },
@@ -613,7 +613,7 @@ CmdlineOpts parseArgs(int argc, char** argv) {
       }
       usedStdin = true;
     }
-    if (opts.positional[2] != "-") {
+    if (!overwriteFiles && opts.positional[2] != "-") {
       confirmOverwrite(opts.positional[2], usedStdin, false);
     }
   } else if (opts.mode == "compare") {

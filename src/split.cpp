@@ -405,7 +405,7 @@ void split(std::string_view input, std::string_view poutputDir,
       {
         std::ostringstream oss;
         oss << "box" << std::setfill('0') << std::setw(filenameDigits)
-            << boxIndex << "_[" << simplifyString(boxType) << "].box";
+            << i << "_[" << simplifyString(boxType) << "].box";
         boxBaseName = oss.str();
       }
 

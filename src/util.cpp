@@ -275,14 +275,12 @@ bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage) {
           layerInfo.crop_x0 != rightLayerInfo.crop_x0 ||
           layerInfo.crop_y0 != rightLayerInfo.crop_y0) {
         JXLTK_DEBUG("Frame %zu has differing crop/offset ("
-                    "%" PRIu32 "x%" PRIu32 "%c%" PRId32 "%c%" PRId32 " vs "
-                    "%" PRIu32 "x%" PRIu32 "%c%" PRId32 "%c%" PRId32 ").", frameIndex,
+                    "%" PRIu32 "x%" PRIu32 "%+" PRId32 "%+" PRId32 " vs "
+                    "%" PRIu32 "x%" PRIu32 "%+" PRId32 "%+" PRId32 ").", frameIndex,
                     layerInfo.xsize, layerInfo.ysize,
-                    layerInfo.crop_x0 < 0 ? '-' : '+', abs(layerInfo.crop_x0),
-                    layerInfo.crop_y0 < 0 ? '-' : '+', abs(layerInfo.crop_y0),
+                    layerInfo.crop_x0, layerInfo.crop_y0,
                     rightLayerInfo.xsize, rightLayerInfo.ysize,
-                    rightLayerInfo.crop_x0 < 0 ? '-' : '+', abs(rightLayerInfo.crop_x0),
-                    rightLayerInfo.crop_y0 < 0 ? '-' : '+', abs(rightLayerInfo.crop_y0));
+                    rightLayerInfo.crop_x0, rightLayerInfo.crop_y0);
         return false;
       }
     }
@@ -312,13 +310,13 @@ bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage) {
     const float* thisLeftColorData = leftFrame.color.data();
     const float* thisRightColorData = rightFrame.color.data();
     for (size_t sampleIdx = 0; sampleIdx < leftFrame.color.size(); ++sampleIdx) {
-      float diff = std::fabs(*thisLeftColorData++) - std::fabs(*thisRightColorData++);
+      float diff = std::fabs(*thisLeftColorData++ - *thisRightColorData++);
       if (diff >= colorEpsilon) {
         size_t pixelIndex = sampleIdx / leftInfo.num_color_channels;
         JXLTK_DEBUG("Color samples in frame %zu at pixel %zux%zu channel %zu differ "
                     "when decoded with %" PRIu32 "-bit precision", frameIdx,
-                    pixelIndex / frameLayerInfos[frameIdx].ysize,
                     pixelIndex % frameLayerInfos[frameIdx].ysize,
+                    pixelIndex / frameLayerInfos[frameIdx].ysize,
                     sampleIdx % leftInfo.num_color_channels, colorBitsPerSample);
         return false;
       }
@@ -328,10 +326,10 @@ bool haveSamePixels(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage) {
     for (size_t ec = 0; ec < leftFrame.ecs.size(); ++ec) {
       const std::vector<float>& leftEc = (leftEcIter++)->second;
       const std::vector<float>& rightEc = (rightEcIter++)->second;
-      const float* leftEcData = rightEc.data();
+      const float* leftEcData = leftEc.data();
       const float* rightEcData = rightEc.data();
       for (size_t sampleIdx = 0; sampleIdx < leftEc.size(); ++sampleIdx) {
-        float diff = std::fabs(*leftEcData++) - std::fabs(*rightEcData++);
+        float diff = std::fabs(*leftEcData++ - *rightEcData++);
         if (diff >= ecEpsilons[ec]) {
           size_t pixelIndex = sampleIdx;
           JXLTK_DEBUG("Extra channel samples in frame %zu at pixel %zux%zu channel %zu"

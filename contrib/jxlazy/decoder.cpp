@@ -675,8 +675,13 @@ void Decoder::goToFrame_(size_t index) {
   }
 
   // We are now before the required frame. Iterate until we reach the one we want.
-  if (processInput_(0, StopAtIndex::Specific, index, StopAtIndex::None, 0) !=
-      JXL_DEC_FRAME || nextFrameIndex_-1 != index) {
+  JxlDecoderStatus st = processInput_(0, StopAtIndex::Specific, index,
+                                      StopAtIndex::None, 0);
+  if (st != JXL_DEC_FRAME || nextFrameIndex_-1 != index) {
+    if (st == JXL_DEC_SUCCESS) {
+      throw IndexOutOfRange("%s: Frame at index %zu doesn't exist (reached EOF while "
+                            "scanning)", __func__, index);
+    }
     throw ReadError("Failed to find frame %zu.", index);
   }
 }

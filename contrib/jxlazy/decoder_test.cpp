@@ -214,6 +214,8 @@ TEST(Decoder, CanGetFrameInfoCoalesced) {
   EXPECT_EQ(layerInfo.ysize, bi.ysize);
   EXPECT_EQ(layerInfo.have_crop, JXL_FALSE);
   EXPECT_EQ(layerInfo.blend_info.blendmode, JXL_BLEND_REPLACE);
+
+  EXPECT_THROW(jxl.getFrameInfo(1), jxlazy::IndexOutOfRange);
 }
 
 TEST(Decoder, CanGetFrameInfoNonCoalesced) {

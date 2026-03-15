@@ -468,9 +468,9 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
   for (const BoxConfig& inBoxCfg : mergeCfg.boxes) {
     BoxConfig boxCfg(mergeCfg.boxDefaults);
     boxCfg.update(inBoxCfg);
-    if (!boxCfg.type || boxCfg.type->size() != 4) {
+    if (strlen(boxCfg.type) != 4) {
       throw JxltkError("%s: Invalid box type %s", __func__,
-                       shellQuote(boxCfg.type.value_or(""), true).c_str());
+                       shellQuote(boxCfg.type, true).c_str());
     }
     if (boxCfg.file && !boxCfg.file->empty()) {
       loadFile(*boxCfg.file, &boxContent);
@@ -480,8 +480,8 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
     bool compress = boxCfg.compress.value_or(false);
     JXLTK_INFO("Writing box [%zu/%zu]: %s%s", nextBox+1, totalBoxes,
                compress ? "'brob'/" : "",
-               shellQuote(simplifyString(*boxCfg.type), true).c_str());
-    writeBox(enc, boxCfg.type->data(), boxContent.data(), boxContent.size(),
+               shellQuote(simplifyString(boxCfg.type), true).c_str());
+    writeBox(enc, boxCfg.type, boxContent.data(), boxContent.size(),
              compress, nextBox == totalBoxes - 1, buffer.get(), kDefaultIOBufferSize, fout);
     ++nextBox;
   }

@@ -20,9 +20,9 @@ namespace jxltk {
 
 struct BoxConfig {
   BoxConfig() = default;
-  std::optional<std::string> type{};
   std::optional<std::string> file{};
   std::optional<bool> compress{};
+  char type[5]{};
 
   bool isAllDefault() const;
 
@@ -59,21 +59,21 @@ struct ColorConfig {
 struct FrameConfig {
   std::optional<float> alphaFill{};
   std::optional<JxlBlendMode> blendMode{};
-  std::optional<uint32_t> blendSource{};
+  std::optional<uint8_t> blendSource{};
   std::optional<bool> copyBoxes{};
   std::optional<float> distance{};
   std::optional<uint32_t> durationMs{};
   std::optional<uint32_t> durationTicks{};
-  std::optional<int32_t> effort{};
-  std::optional<int32_t> fasterDecoding{};
+  std::optional<int16_t> effort{};
+  std::optional<int16_t> fasterDecoding{};
   std::optional<std::string> file{};
   std::optional<size_t> frameIndex{};
-  std::optional<int32_t> maPrevChannels{};
-  std::optional<int32_t> maTreeLearnPct{};
+  std::optional<int16_t> maPrevChannels{};
+  std::optional<int16_t> maTreeLearnPct{};
   std::optional<std::string> name{};
   std::optional<std::pair<int32_t,int32_t> > offset{};
-  std::optional<int32_t> patches{};
-  std::optional<uint32_t> saveAsReference{};
+  std::optional<int16_t> patches{};
+  std::optional<uint8_t> saveAsReference{};
 
   /**
    * Return a new FrameConfig populated with the properties from @p header.
@@ -117,8 +117,8 @@ struct MergeConfig {
   std::optional<uint32_t> ysize{};
   BoxConfig boxDefaults{};
   FrameConfig frameDefaults{};
-  std::optional<int> codestreamLevel{};
-  std::optional<int32_t> brotliEffort{};
+  std::optional<int16_t> codestreamLevel{};
+  std::optional<int16_t> brotliEffort{};
 
   std::vector<FrameConfig> frames{};
   std::vector<BoxConfig> boxes{};

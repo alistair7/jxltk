@@ -39,12 +39,13 @@ BoxConfig boxConfigFromJson(const nlohmann::json& box, std::optional<size_t> pos
 
   for (const auto& [key, val] : box.items()) {
     if (key == "type") {
-      boxCfg.type = val.get<string>();
-      if (boxCfg.type->size() != 4) {
+      string strType = val.get<string>();
+      if (strType.size() != 4) {
         JXLTK_ERROR_AND_THROW(InvalidConfigError,
                               "%s: Invalid type: %s", getBoxPrefix(pos).c_str(),
-                              shellQuote(*boxCfg.type, true).c_str());
+                              shellQuote(strType, true).c_str());
       }
+      memcpy(boxCfg.type, strType.c_str(), sizeof boxCfg.type);
 
     } else if (key == "file") {
       boxCfg.file = val.get<string>();
@@ -64,12 +65,12 @@ BoxConfig boxConfigFromJson(const nlohmann::json& box, std::optional<size_t> pos
 
 nlohmann::json boxConfigToJson(const BoxConfig& boxCfg, bool full) {
   nlohmann::json boxObject;
-  if (boxCfg.type) {
-    if (boxCfg.type->size() != 4) {
+  if (*boxCfg.type) {
+    if (strlen(boxCfg.type) != 4) {
       JXLTK_ERROR_AND_THROW(JxltkError, "Invalid box type %s.",
-                            shellQuote(*boxCfg.type, true).c_str());
+                            shellQuote(boxCfg.type, true).c_str());
     }
-    boxObject["type"] = *boxCfg.type;
+    boxObject["type"] = boxCfg.type;
   }
   if (boxCfg.file) {
     boxObject["file"] = *boxCfg.file;
@@ -241,7 +242,7 @@ FrameConfig frameConfigFromJson(const nlohmann::json& frameObj,
       frame.blendMode = blendMode;
 
     } else if (key == "blendSource") {
-      frame.blendSource = val.get<uint32_t>();
+      frame.blendSource = val.get<uint8_t>();
 
     } else if (key == "copyBoxes") {
       frame.copyBoxes = val.get<bool>();
@@ -270,10 +271,10 @@ FrameConfig frameConfigFromJson(const nlohmann::json& frameObj,
       frame.durationTicks = val.get<uint32_t>();
 
     } else if (key == "effort") {
-      frame.effort = val.get<int32_t>();
+      frame.effort = val.get<int16_t>();
 
     } else if (key == "fasterDecoding") {
-      frame.fasterDecoding = val.get<int32_t>();
+      frame.fasterDecoding = val.get<int16_t>();
 
     } else if (key == "file") {
       frame.file = val.get<string>();
@@ -282,19 +283,19 @@ FrameConfig frameConfigFromJson(const nlohmann::json& frameObj,
       frame.frameIndex = val.get<size_t>();
 
     } else if (key == "maPrevChannels") {
-      frame.maPrevChannels = val.get<int32_t>();
+      frame.maPrevChannels = val.get<int16_t>();
 
     } else if (key == "maTreeLearnPct") {
-      frame.maTreeLearnPct = val.get<int32_t>();
+      frame.maTreeLearnPct = val.get<int16_t>();
 
     } else if (key == "name") {
       frame.name = val.get<string>();
 
     } else if (key == "patches") {
-      frame.patches = val.get<int32_t>();
+      frame.patches = val.get<int16_t>();
 
     } else if (key == "saveAsReference") {
-      frame.saveAsReference = val.get<uint32_t>();
+      frame.saveAsReference = val.get<uint8_t>();
 
     } else if (key != "comment") {
       JXLTK_ERROR_AND_THROW(InvalidConfigError, "Unknown key in %s: %s", nodeName,
@@ -404,13 +405,13 @@ nlohmann::json frameConfigToJson(const FrameConfig& frame, bool full,
 
 
 bool BoxConfig::isAllDefault() const {
-  return !compress && !file && !type;
+  return !compress && !file && !*type;
 }
 
 BoxConfig &BoxConfig::update(const BoxConfig &b) {
   if (b.compress) compress = b.compress;
   if (b.file) file = b.file;
-  if (b.type) type = b.type;
+  if (*b.type) memcpy(type, b.type, sizeof type);
   return *this;
 }
 
@@ -492,7 +493,7 @@ std::string FrameConfig::toString(uint32_t frameXsize,
   JxlBlendMode blendMode = this->blendMode.value_or(JXL_BLEND_REPLACE);
   oss << " blend={mode="
       << blendModeName(blendMode) + 10
-      << " source=" << blendSource.value_or(0);
+      << " source=" << static_cast<unsigned>(blendSource.value_or(0));
   uint32_t saveAsReference = this->saveAsReference.value_or(0);
   if (saveAsReference > 0 ||
       (durationMs.value_or(0) == 0 && durationTicks.value_or(0) == 0)) {
@@ -548,10 +549,10 @@ MergeConfig fromJson_(istream& in) {
       }
 
     } else if (key == "brotliEffort") {
-      opts.brotliEffort = val.get<uint32_t>();
+      opts.brotliEffort = val.get<int16_t>();
 
     } else if (key == "codestreamLevel") {
-      opts.codestreamLevel = val.get<int>();
+      opts.codestreamLevel = val.get<int16_t>();
 
     } else if (key == "color" || key == "colour") {
       opts.color = colorConfigFromJson(val);

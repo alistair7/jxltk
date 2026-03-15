@@ -398,7 +398,9 @@ void split(std::string_view input, std::string_view poutputDir,
     for (size_t i = 0; i < boxCount; ++i) {
       size_t boxIndex = boxes[i].first;
       const jxlazy::BoxInfo& boxInfo = boxes[i].second;
-      std::string boxType = std::string(boxInfo.type, sizeof boxInfo.type);
+      char boxType[5];
+      memcpy(boxType, boxInfo.type, 4);
+      boxType[4] = '\0';
 
       // Decide the filename for this box
       std::string boxBaseName;
@@ -412,7 +414,7 @@ void split(std::string_view input, std::string_view poutputDir,
       // Append an element to the JSON boxes[] array
       if (!configFile.empty()) {
         BoxConfig jsonBoxConfig;
-        jsonBoxConfig.type = std::move(boxType);
+        memcpy(jsonBoxConfig.type, boxType, sizeof jsonBoxConfig.type);
         jsonBoxConfig.file = boxBaseName;
         jsonBoxConfig.compress = boxInfo.compressed;
         mergeCfg.boxes.push_back(std::move(jsonBoxConfig));

@@ -48,7 +48,7 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
     const FrameConfig& frameConfig,
     uint32_t tpsNumerator, uint32_t tpsDenominator,
     uint32_t frameXsize, uint32_t frameYsize,
-    const std::optional<int32_t>& brotliEffort) {
+    const std::optional<int16_t>& brotliEffort) {
   JxlEncoderFrameSettings* settings = JxlEncoderFrameSettingsCreate(enc, nullptr);
   if (!settings) {
     throw JxltkError("%s: Failed to create frame settings", __func__);

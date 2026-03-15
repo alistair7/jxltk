@@ -238,34 +238,37 @@ static void confirmOverwrite(string_view file, bool usedStdin, bool isDir) {
                 isDir ? "write into" : "overwrite");
     exit(EXIT_FAILURE);
   }
+  const char* prompt = nullptr;
   if (isDir) {
     if (ftype != filesystem::file_type::directory) {
       JXLTK_ERROR("Can't create directory at %s - file exists.",
                   shellQuote(file).c_str());
       exit(EXIT_FAILURE);
     }
-    bool doPrompt = false;
     for (const auto& dirEntry : std::filesystem::directory_iterator{path}) {
       const std::filesystem::path ext = dirEntry.path().extension();
       if (ext == ".jxl" || ext == ".box" || dirEntry.path().filename() == "merge.json") {
-        doPrompt = true;
+        prompt = "Write output files into existing directory ";
         break;
       }
     }
-    if (!doPrompt) {
+    if (!prompt) {
       return;
     }
-    cerr << "Write output files into existing directory ";
   } else {
-    cerr << "Overwrite existing file ";
+   prompt = "Overwrite existing file ";
   }
-  cerr << shellQuote(file, true) << "? [y/n] ";
-  cerr.flush();
-  string answer;
-  cin >> answer;
-  if (!answer.starts_with("y") && !answer.starts_with("Y")) {
-    JXLTK_NOTICE("Not overwriting existing files.");
-    exit(EXIT_FAILURE);
+  while (true) {
+    cerr << prompt << shellQuote(file, true) << "? [y/n] ";
+    cerr.flush();
+    string answer;
+    std::getline(cin, answer);
+    if (answer.empty()) continue;
+    if (!answer.starts_with("y") && !answer.starts_with("Y")) {
+      JXLTK_NOTICE("Not overwriting existing files.");
+      exit(EXIT_FAILURE);
+    }
+    return;
   }
 }
 

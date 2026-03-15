@@ -75,9 +75,6 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
     { "DECODING_SPEED", JXL_ENC_FRAME_SETTING_DECODING_SPEED,
       frameConfig.fasterDecoding },
     { "EFFORT", JXL_ENC_FRAME_SETTING_EFFORT, frameConfig.effort },
-    { "MODULAR_MA_TREE_LEARNING_PERCENT",
-      JXL_ENC_FRAME_SETTING_MODULAR_MA_TREE_LEARNING_PERCENT,
-      frameConfig.maTreeLearnPct },
     { "MODULAR_NB_PREV_CHANNELS", JXL_ENC_FRAME_SETTING_MODULAR_NB_PREV_CHANNELS,
        frameConfig.maPrevChannels },
     { "PATCHES", JXL_ENC_FRAME_SETTING_PATCHES, frameConfig.patches },
@@ -88,6 +85,17 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
                                          *s.value) != JXL_ENC_SUCCESS) {
       throw JxltkError("%s: Failed to set JXL_ENC_FRAME_SETTING_%s = %"
                        PRId32, __func__, s.settingName, *s.value);
+    }
+  }
+
+  if (frameConfig.maTreeLearnPct && *frameConfig.maTreeLearnPct != -1) {
+    auto pct = static_cast<float>(*frameConfig.maTreeLearnPct);
+    if (JxlEncoderFrameSettingsSetFloatOption(
+          settings, JXL_ENC_FRAME_SETTING_MODULAR_MA_TREE_LEARNING_PERCENT,
+          pct) != JXL_ENC_SUCCESS) {
+      throw JxltkError("%s: Failed to set "
+                       "JXL_ENC_FRAME_SETTING_MODULAR_MA_TREE_LEARNING_PERCENT = %f",
+                       __func__, pct);
     }
   }
 

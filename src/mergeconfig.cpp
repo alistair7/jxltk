@@ -278,6 +278,9 @@ FrameConfig frameConfigFromJson(const nlohmann::json& frameObj,
     } else if (key == "file") {
       frame.file = val.get<string>();
 
+    } else if (key == "frameIndex") {
+      frame.frameIndex = val.get<size_t>();
+
     } else if (key == "maPrevChannels") {
       frame.maPrevChannels = val.get<int32_t>();
 
@@ -349,6 +352,11 @@ nlohmann::json frameConfigToJson(const FrameConfig& frame, bool full,
     frameObject["file"] = *frame.file;
   } else if (full) {
     frameObject["file"] = frameDefaults.file.value_or("");
+  }
+  if (frame.frameIndex) {
+    frameObject["frameIndex"] = *frame.frameIndex;
+  } else if (full) {
+    frameObject["frameIndex"] = 0;
   }
   if (frame.maPrevChannels) {
     frameObject["maPrevChannels"] = *frame.maPrevChannels;
@@ -427,6 +435,7 @@ FrameConfig& FrameConfig::update(const FrameConfig& f) {
   if (f.effort) effort = f.effort;
   if (f.fasterDecoding) fasterDecoding = f.fasterDecoding;
   if (f.file) file = f.file;
+  if (f.frameIndex) frameIndex = f.frameIndex;
   if (f.maPrevChannels) maPrevChannels = f.maPrevChannels;
   if (f.maTreeLearnPct) maTreeLearnPct = f.maTreeLearnPct;
   if (f.name) name = f.name;
@@ -447,6 +456,7 @@ bool FrameConfig::isAllDefault() const {
          !effort &&
          !fasterDecoding &&
          !file &&
+         !frameIndex &&
          !maPrevChannels &&
          !maTreeLearnPct &&
          !name &&
@@ -493,16 +503,22 @@ std::string FrameConfig::toString(uint32_t frameXsize,
   if (alphaFill) oss << " alphaFill=" << *alphaFill;
   if (fasterDecoding.value_or(0) > 0) oss << " fastDec=" << *fasterDecoding;
   if (name && !name->empty()) oss << " name=" << shellQuote(*name);
-  if (file && !file->empty()) oss << " file=" << shellQuote(*file);
+  if (file && !file->empty()) {
+    oss << " file=" << shellQuote(*file);
+    if (frameIndex) oss << '[' << *frameIndex << ']';
+  }
   return oss.str();
 }
 
 void FrameConfig::normalize() {
+  if (distance && *distance == -1) {
+    distance.reset();
+  }
   if (effort && *effort == -1) {
     effort.reset();
   }
-  if (distance && *distance == -1) {
-    distance.reset();
+  if (frameIndex && *frameIndex == 0) {
+    frameIndex.reset();
   }
   if (maPrevChannels && *maPrevChannels == -1) {
     maPrevChannels.reset();

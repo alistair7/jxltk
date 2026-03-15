@@ -389,7 +389,8 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
       }
       JXLTK_DEBUG("Frame %zu pixel format: %s", i, toString(pixelFormat).c_str());
 
-      frameBuffers.emplace_back(std::move(frameDecPtr), 0, pixelFormat);
+      frameBuffers.emplace_back(std::move(frameDecPtr), frameCfg.frameIndex.value_or(0),
+                                pixelFormat);
     } else {
       // Missing decoders are inputs that had no filename.
       // Construct 1x1 black transparent frames for these.

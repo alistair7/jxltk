@@ -15,6 +15,7 @@
 
 #include "except.h"
 #include "merge.h"
+#include "util.h"
 
 static std::string getPath(std::string_view s) {
   return std::string(JXLTK_TEST_DIR) + '/' + std::string(s);
@@ -250,4 +251,38 @@ TEST(Merge, Premultiplied) {
     EXPECT_THROW(jxltk::merge(mergeCfg, oss, 0, false, /*unPremultiplyAlpha=*/false),
                  jxltk::JxltkError);
   }
+}
+
+TEST(Merge, SelectFrames) {
+  jxltk::MergeConfig mergeCfg;
+  mergeCfg.frameDefaults.effort = 1;
+  mergeCfg.frameDefaults.durationMs = 500;
+  mergeCfg.frameDefaults.file = getPath("rast.jxl");
+  mergeCfg.frameDefaults.blendSource = 1;
+  mergeCfg.frameDefaults.saveAsReference = 1;
+
+  jxltk::FrameConfig* frameCfg;
+  // Ask for an invalid frame index
+  frameCfg = &mergeCfg.frames.emplace_back();
+  frameCfg->frameIndex = 2;
+  EXPECT_THROW(jxltk::merge(mergeCfg, std::cout), jxlazy::IndexOutOfRange);
+
+  frameCfg->frameIndex = 0;
+  frameCfg->blendSource = 0;
+  frameCfg = &mergeCfg.frames.emplace_back();
+  frameCfg->frameIndex = 1;
+  frameCfg->blendMode = JXL_BLEND_ADD;
+  std::string jxlBytes;
+  {
+    std::ostringstream oss;
+    jxltk::merge(mergeCfg, oss);
+    jxlBytes = oss.str();
+  }
+  jxlazy::Decoder dec;
+  dec.openMemory(reinterpret_cast<const uint8_t*>(jxlBytes.data()), jxlBytes.size(),
+                 0, jxlazy::DecoderHint::NoColorProfile);
+  jxlazy::Decoder orig;
+  orig.openFile(mergeCfg.frameDefaults.file->c_str(), 0,
+                jxlazy::DecoderHint::NoColorProfile);
+  EXPECT_TRUE(jxltk::haveSamePixels(dec, orig));
 }

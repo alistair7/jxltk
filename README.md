@@ -613,13 +613,16 @@ libjxl chooses.
 (Typically you'd override this on the command line, but you can assign different efforts
 to each frame if you want.)
 
-`file`: Path to a JXL file containing the pixels that will become this frame.  In case the
-file has more than one frame, only the first (coalesced) frame is decoded.  The path is
-relative to the directory containing the JSON file (or the current working directory if
-the JSON is being read from stdin).  If `file` is unspecified or empty, the frame will
-automatically become a 1x1 image with every channel set to 0.  When combined with
-`blendSource`, this can provide a cheap way of encoding a repeat of a previous frame.
-(The format probably supports a cleaner way of doing this, but I'm not sure the API does.)
+`file`: Path to a JXL file containing the pixels that will become this frame.  Only one
+coalesced frame is read from the file.  The path is relative to the directory containing
+the JSON file (or the current working directory if the JSON is being read from stdin).  If
+`file` is unspecified or empty, the frame will automatically become a 1x1 image with every
+channel set to 0.  When combined with `blendSource`, this can provide a cheap way of
+encoding a repeat of a previous frame. (The format probably supports a cleaner way of
+doing this, but I'm not sure the API does.)
+
+`frameIndex`: The specific coalesced frame (numbered from 0) to read from this input file.
+The default is 0.  Ignored if `file` is unset.
 
 `name`: A name for this frame.  Default is no name.
 

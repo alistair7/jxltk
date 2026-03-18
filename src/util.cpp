@@ -7,6 +7,7 @@
 #include <cinttypes>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -92,6 +93,7 @@ void loadFile(const string& in, vector<uint8_t>* data, size_t filesize /*=0*/) {
   ifstream ins(in, std::ios::binary);
   return loadFile(ins, data, filesize);
 }
+
 
 string shellQuote(std::string_view str, bool mustQuote /*=false*/) {
   ostringstream oss;
@@ -580,6 +582,66 @@ int cropInPlace(void* psamples, uint32_t width, uint32_t height,
   }
 
   return 0;
+}
+
+
+TempFile::~TempFile() {
+  remove();
+}
+
+void TempFile::open() {
+  remove();
+  // Insecure temp file creation
+  std::random_device r;
+  std::default_random_engine e1(r());
+  std::uniform_int_distribution<uint64_t> dist;
+  std::filesystem::path tempdir = std::filesystem::temp_directory_path();
+  std::ios_base::openmode mode = std::ios_base::out |
+                                 std::ios_base::binary;
+#if __cplusplus >= 202302L
+  mode |= std::ios_base::noreplace;
+#endif
+  for (int i = 0; i < 20; ++i) {
+    uint64_t r1 = dist(e1);
+    uint64_t r2 = dist(e1);
+    char basename[7 + 16 + 16 + 1];
+    snprintf(basename, sizeof basename, ".jxltk_%" PRIx64 "%" PRIx64, r1, r2);
+    std::filesystem::path tempPath = tempdir / basename;
+#if __cplusplus < 202302L
+    if (std::filesystem::exists(tempPath)) {
+      JXLTK_TRACE("Temp file exists: %s.", shellQuote(tempPath.c_str(), true).c_str());
+      continue;
+    }
+#endif
+    file.open(tempPath, mode);
+    if (file.is_open()) {
+      path = tempPath;
+      JXLTK_DEBUG("Created temporary file %s.", shellQuote(path).c_str());
+      return;
+    }
+    JXLTK_TRACE("Failed to open %s.", shellQuote(tempPath.c_str(), true).c_str());
+  }
+  throw JxltkError("Failed to create temporary file");
+}
+
+void TempFile::close() {
+  if (file.is_open()) {
+    file.close();
+  }
+}
+
+void TempFile::remove() {
+  if (!path.empty()) {
+    close();
+    JXLTK_TRACE("Deleting %s.", shellQuote(path).c_str());
+    std::remove(path.c_str());
+    path.clear();
+  }
+}
+
+void TempFile::forget() {
+  close();
+  path.clear();
 }
 
 }  // namespace jxltk

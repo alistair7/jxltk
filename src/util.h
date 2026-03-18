@@ -7,10 +7,11 @@
 #ifndef JXLTK_UTIL_H_
 #define JXLTK_UTIL_H_
 
-#include <cinttypes>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <random>
 #include <span>
 #include <string>
 #include <vector>
@@ -72,6 +73,7 @@ void loadFile(std::istream& in, std::vector<uint8_t>* data,
  */
 void loadFile(const std::string& in, std::vector<uint8_t>* data,
               size_t filesize = 0);
+
 
 /**
  * Return a copy of @p str in a safe-ish quoted format
@@ -223,6 +225,49 @@ Crop a frame buffer in place.
 */
 int cropInPlace(void* psamples, uint32_t width, uint32_t height,
                 JxlDataType dataType, size_t numChannels, const CropRegion& cropRegion);
+
+
+/**
+ * Wrapper for a file that gets deleted automatically on destruction.
+ */
+class TempFile {
+public:
+  std::fstream file{};
+  std::string path{};
+
+  TempFile() = default;
+  TempFile(const TempFile&) = delete;
+  TempFile(TempFile&&) = default;
+  /**
+   * Calls this->remove()
+   */
+  ~TempFile();
+
+  /**
+   * Call this->remove(), then open a new randomly-named file in the temporary directory.
+   * (How securely this is done can vary.)  The file is always opened w+b.
+   * Initialise @c file and @c path accordingly.
+   */
+  void open();
+
+  /**
+   * Close the current file if it's open (@c file).
+   * This doesn't delete the file, and @c path remains set.
+   */
+  void close();
+
+  /**
+   * Close @c file if it's open.
+   * Delete the file named @c path if it exists.
+   * Clear @c path.
+   */
+  void remove();
+
+  /**
+   * Like close(), but also clear @c path, preventing automatic deletion.
+   */
+  void forget();
+};
 
 }  // namespace jxltk
 

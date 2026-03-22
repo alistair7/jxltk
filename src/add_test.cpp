@@ -99,7 +99,7 @@ TEST(AddOrSubtract, SelfSubtract) {
     std::string result;
     {
       std::ostringstream sresult;
-      EXPECT_EQ(jxltk::addOrSubtract(leftDec, rightDec, false, sresult), 0);
+      EXPECT_EQ(jxltk::addOrSubtract(leftDec, rightDec, false, &sresult), 0);
       result = sresult.str();
     }
     resultDec.openMemory(reinterpret_cast<const uint8_t*>(result.data()), result.size(),
@@ -153,7 +153,7 @@ TEST(AddOrSubtract, SelfSubtract) {
     std::string restore;
     {
       std::ostringstream srestore;
-      EXPECT_EQ(jxltk::addOrSubtract(leftDec, resultDec, true, srestore), 0);
+      EXPECT_EQ(jxltk::addOrSubtract(leftDec, resultDec, true, &srestore), 0);
       restore = srestore.str();
     }
     restoreDec.openMemory(reinterpret_cast<const uint8_t*>(restore.data()),
@@ -189,7 +189,7 @@ TEST(AddOrSubtract, AddIsCommutative) {
     std::string result;
     {
       std::ostringstream sresult;
-      EXPECT_EQ(jxltk::addOrSubtract(leftDec, rightDec, true, sresult), 0);
+      EXPECT_EQ(jxltk::addOrSubtract(leftDec, rightDec, true, &sresult), 0);
       result = sresult.str();
     }
     jxlazy::Decoder resultDec;
@@ -228,7 +228,7 @@ TEST(AddOrSubtract, Roundtrip) {
     std::string subtractedJxl;
     {
       std::ostringstream ss;
-      EXPECT_EQ(jxltk::addOrSubtract(minuendDec, subtrahendDec, false, ss, frameConfig),
+      EXPECT_EQ(jxltk::addOrSubtract(minuendDec, subtrahendDec, false, &ss, frameConfig),
                 0);
       subtractedJxl = ss.str();
     }
@@ -247,11 +247,17 @@ TEST(AddOrSubtract, Roundtrip) {
       subtractedDec.getFramePixels<float>(0, numColorChannels, std::span<const int>({-1}));
     EXPECT_EQ(subtractedPixels, expectPixels);
 
+    // Test null output too
+    size_t written;
+    EXPECT_EQ(jxltk::addOrSubtract(minuendDec, subtrahendDec, false, nullptr,
+                                   frameConfig, 0, &written), 0);
+    EXPECT_EQ(subtractedJxl.size(), written);
+
     // Add back
     std::string addedJxl;
     {
       std::ostringstream ss;
-      EXPECT_EQ(jxltk::addOrSubtract(subtractedDec, subtrahendDec, true, ss, frameConfig),
+      EXPECT_EQ(jxltk::addOrSubtract(subtractedDec, subtrahendDec, true, &ss, frameConfig),
                 0);
       addedJxl = ss.str();
     }
@@ -267,7 +273,7 @@ TEST(AddOrSubtract, Roundtrip) {
     // Add original frames together
     {
       std::ostringstream ss;
-      EXPECT_EQ(jxltk::addOrSubtract(minuendDec, subtrahendDec, true, ss, frameConfig),
+      EXPECT_EQ(jxltk::addOrSubtract(minuendDec, subtrahendDec, true, &ss, frameConfig),
                 0);
       addedJxl = ss.str();
     }
@@ -286,7 +292,7 @@ TEST(AddOrSubtract, Roundtrip) {
     // Subtract back
     {
       std::ostringstream ss;
-      EXPECT_EQ(jxltk::addOrSubtract(addedDec, subtrahendDec, false, ss, frameConfig), 0);
+      EXPECT_EQ(jxltk::addOrSubtract(addedDec, subtrahendDec, false, &ss, frameConfig), 0);
       subtractedJxl = ss.str();
     }
     subtractedDec.openMemory(reinterpret_cast<uint8_t*>(subtractedJxl.data()),

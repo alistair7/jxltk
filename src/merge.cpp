@@ -156,7 +156,7 @@ void writeBox(JxlEncoder* enc, const JxlBoxType boxType, const uint8_t* content,
   if (isLast) {
     JxlEncoderCloseBoxes(enc);
   }
-  JxlEncoderStatus st = encodeUntilSuccess(enc, buffer, bufferSize, fout);
+  JxlEncoderStatus st = encodeUntilSuccess(enc, buffer, bufferSize, &fout);
   if (st != JXL_ENC_SUCCESS) {
     throw JxltkError("%s: Unexpected encoder status while writing box: %s",
                      __func__, encoderStatusName(st));
@@ -579,7 +579,8 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
       JxlEncoderCloseFrames(enc);
     }
 
-    JxlEncoderStatus st = encodeUntilSuccess(enc, buffer.get(), kDefaultIOBufferSize, fout);
+    JxlEncoderStatus st = encodeUntilSuccess(enc, buffer.get(), kDefaultIOBufferSize,
+                                             &fout);
     if (st != JXL_ENC_SUCCESS) {
       throw JxltkError("%s: Unexpected encoder status while writing frame %zu: %s",
                        __func__, frameIdx, encoderStatusName(st));

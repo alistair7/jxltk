@@ -29,13 +29,16 @@ constexpr size_t kDefaultIOBufferSize = size_t{128} * 1024;
  *
  * @param[in,out] buffer Pre-allocated scratch buffer.
  * @param[in] bufferSize Size of @p buffer.
- * @param[in,out] fout Stream to write JXL bytes to.
+ * @param[in,out] fout Stream to write JXL bytes to, or nullptr to consume encoder output
+ *   without writing it anywhere.
+ * @param[out] written Number of bytes output from the encoder, or nullptr if you don't
+ *   care.
  * @return JXL_ENC_SUCCESS if everything passed to the encoder so far was
  * successfully encoded and written out, else return the unexpected encoder
  * status (i.e. JXL_ENC_ERROR).
  */
 JxlEncoderStatus encodeUntilSuccess(JxlEncoder* enc, uint8_t* buffer, size_t bufferSize,
-                                    std::ostream& fout);
+                                    std::ostream* fout, size_t* written = nullptr);
 
 /**
  * Initialise frame settings for the next frame based on a FrameConfig.

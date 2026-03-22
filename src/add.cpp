@@ -25,8 +25,8 @@ namespace jxltk {
 
 
 int addOrSubtract(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage, bool adding,
-                  std::ostream& outfile, const FrameConfig& frameConfig = {},
-                  size_t numThreads = 0) {
+                  std::ostream* fout, const FrameConfig& frameConfig,
+                  size_t numThreads, size_t* written) {
   const char* opName = adding ? "add" : "subtract";
 
   // Validate
@@ -194,7 +194,7 @@ int addOrSubtract(jxlazy::Decoder& leftImage, jxlazy::Decoder& rightImage, bool 
     if (frameIdx == frameCount - 1) {
       JxlEncoderCloseInput(enc);
     }
-    if (encodeUntilSuccess(enc, outbuf.get(), kDefaultIOBufferSize, outfile)
+    if (encodeUntilSuccess(enc, outbuf.get(), kDefaultIOBufferSize, fout, written)
         != JXL_ENC_SUCCESS) {
       JXLTK_ERROR("Failed to write file.");
       return EXIT_FAILURE;

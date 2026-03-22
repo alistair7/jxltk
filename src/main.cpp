@@ -180,7 +180,7 @@ int main_(int argc, char** argv) {
       loutfile.open(opts.positional[2].c_str(), std::ios::binary);
       outfile = &loutfile;
     }
-    addOrSubtract(leftImage, rightImage, opts.mode == "add", *outfile,
+    addOrSubtract(leftImage, rightImage, opts.mode == "add", outfile,
                   opts.overrideFrameConfig, opts.numThreads);
     return EXIT_SUCCESS;
   }

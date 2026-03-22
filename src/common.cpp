@@ -155,28 +155,20 @@ JxlEncoderFrameSettings* frameConfigToJxlEncoderFrameSettings(
 }
 
 
-/**
- * Process encoder input and write output to a file until JXL_ENC_SUCCESS.
- *
- * Returns when the encoder returns anything that isn't JXL_ENC_NEED_MORE_OUTPUT.
- *
- * @param[in,out] buffer Pre-allocated scratch buffer.
- * @param[in] bufferSize Size of @p buffer.
- * @param[in,out] fout Stream to write JXL bytes to.
- * @return JXL_ENC_SUCCESS if everything passed to the encoder so far was
- * successfully encoded and written out, else return the unexpected encoder
- * status (i.e. JXL_ENC_ERROR).
- */
 JxlEncoderStatus encodeUntilSuccess(JxlEncoder* enc, uint8_t* buffer, size_t bufferSize,
-                                    std::ostream& fout) {
+                                    std::ostream* fout, size_t* written) {
   uint8_t* nextOut = buffer;
   size_t availOut = bufferSize;
+  size_t lWritten = 0;
   JxlEncoderStatus st;
   while ((st = JxlEncoderProcessOutput(enc, &nextOut, &availOut))
            == JXL_ENC_NEED_MORE_OUTPUT) {
     size_t buffered = bufferSize - availOut;
-    fout.write(reinterpret_cast<const char*>(buffer),
-               static_cast<std::streamsize>(buffered));
+    if (fout) {
+      fout->write(reinterpret_cast<const char*>(buffer),
+                  static_cast<std::streamsize>(buffered));
+    }
+    lWritten += buffered;
     nextOut = buffer;
     availOut = bufferSize;
   }
@@ -184,8 +176,14 @@ JxlEncoderStatus encodeUntilSuccess(JxlEncoder* enc, uint8_t* buffer, size_t buf
     return st;
   }
   size_t buffered = bufferSize - availOut;
-  fout.write(reinterpret_cast<const char*>(buffer),
-             static_cast<std::streamsize>(buffered));
+  if (fout) {
+    fout->write(reinterpret_cast<const char*>(buffer),
+                static_cast<std::streamsize>(buffered));
+  }
+  lWritten += buffered;
+  if (written) {
+    *written = lWritten;
+  }
   return JXL_ENC_SUCCESS;
 }
 

@@ -367,7 +367,7 @@ void split(std::string_view input, std::string_view poutputDir,
         jxlBuffer.resize(kDefaultIOBufferSize);
       }
       JxlEncoderStatus st = encodeUntilSuccess(enc, jxlBuffer.data(),
-                                               jxlBuffer.size(), outFile);
+                                               jxlBuffer.size(), &outFile);
       if (st != JXL_ENC_SUCCESS) {
         throw JxltkError("%s: Unexpected encoder status while writing frame %zu: %s",
                          __func__, frameIndex, encoderStatusName(st));

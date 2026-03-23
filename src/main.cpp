@@ -148,14 +148,28 @@ int main_(int argc, char** argv) {
 
   if (opts.mode == "split") {
 
+    MergeConfig mergeCfg;
+    const char* outputDir = opts.positional.size() > 1 ? opts.positional[1].c_str() : "";
     split(opts.positional[0],
-          opts.positional.size() > 1 ? opts.positional[1] : std::string(),
+          outputDir,
           opts.coalesce,
           opts.numThreads, opts.overrideFrameConfig, opts.overrideDataType,
           !opts.configOnly,
           !opts.configOnly,
-          opts.configOnly ? "-" : "merge.json", !opts.useMilliseconds,
+          &mergeCfg, !opts.useMilliseconds,
           opts.fullConfig);
+
+    if (opts.configOnly) {
+      mergeCfg.toJson(std::cout, opts.fullConfig);
+    } else {
+      std::string filePath = (std::filesystem::path(outputDir) / "merge.json").string();
+      std::ofstream jsonFile(filePath, std::ios::binary);
+      if (!jsonFile) {
+        JXLTK_ERROR("Failed to open %s for writing.", shellQuote(filePath, true).c_str());
+        return EXIT_FAILURE;
+      }
+      mergeCfg.toJson(jsonFile, opts.fullConfig);
+    }
     return EXIT_SUCCESS;
   }
 

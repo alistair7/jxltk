@@ -49,12 +49,9 @@ bool shouldDefaultToFloat(const jxlazy::FrameInfo& frameInfo) {
 }  // namespace
 
 void split(std::string_view input, std::string_view poutputDir,
-           bool coalesce = false, size_t numThreads = 0,
-           const FrameConfig& frameConfig = {},
-           const std::optional<JxlDataType>& forceDataType = {},
-           bool wantPixels = true, bool wantBoxes = true,
-           std::string_view configFile = "merge.json",
-           bool useTicks = true, bool full = false) {
+           bool coalesce, size_t numThreads, const FrameConfig& frameConfig,
+           const std::optional<JxlDataType>& forceDataType, bool wantPixels,
+           bool wantBoxes, MergeConfig* mergeCfg, bool useTicks, bool full) {
   JXLTK_TRACE("Entered %s", __func__);
   uint32_t decoderFlags = coalesce ? 0 :
                               static_cast<uint32_t>(jxlazy::DecoderFlag::NoCoalesce);
@@ -63,7 +60,7 @@ void split(std::string_view input, std::string_view poutputDir,
     decoderHints |= jxlazy::DecoderHint::NoPixels;
   }
   // Always look for jxll if we're generating a config file
-  if (wantBoxes || !configFile.empty()) {
+  if (wantBoxes || mergeCfg) {
     decoderHints |= jxlazy::DecoderHint::WantBoxes;
   }
 
@@ -83,36 +80,36 @@ void split(std::string_view input, std::string_view poutputDir,
   }
 
   // Build a MergeConfig that will be serialized as json later
-  MergeConfig mergeCfg;
   float tps = 1.0f;
-  if (!configFile.empty()) {
-    mergeCfg.xsize = decInfo.xsize;
-    mergeCfg.ysize = decInfo.ysize;
+  if (mergeCfg) {
+    *mergeCfg = {};
+    mergeCfg->xsize = decInfo.xsize;
+    mergeCfg->ysize = decInfo.ysize;
     if (decInfo.intrinsic_xsize != 0 &&
         (decInfo.intrinsic_xsize != decInfo.xsize ||
           decInfo.intrinsic_ysize != decInfo.ysize)) {
-      mergeCfg.intrinsicXsize =
+      mergeCfg->intrinsicXsize =
           decInfo.intrinsic_xsize ? decInfo.intrinsic_xsize : decInfo.xsize;
-      mergeCfg.intrinsicYsize =
+      mergeCfg->intrinsicYsize =
           decInfo.intrinsic_ysize ? decInfo.intrinsic_ysize : decInfo.ysize;
     }
 
     if (decInfo.have_animation) {
       const JxlAnimationHeader& ah = decInfo.animation;
       if (ah.num_loops > 0) {
-        mergeCfg.loops = ah.num_loops;
+        mergeCfg->loops = ah.num_loops;
       }
       if (useTicks) {
-        mergeCfg.tps.emplace(ah.tps_numerator, ah.tps_denominator);
+        mergeCfg->tps.emplace(ah.tps_numerator, ah.tps_denominator);
       }
       tps = static_cast<float>(ah.tps_numerator) /
             static_cast<float>(ah.tps_denominator);
     }
 
-    if (full && !configFile.empty()) {
+    if (full && mergeCfg) {
       JxlColorEncoding colEnc;
       if (dec.getEncodedColorProfile(JXL_COLOR_PROFILE_TARGET_DATA, &colEnc)) {
-        ColorConfig& colConfig = mergeCfg.color.emplace();
+        ColorConfig& colConfig = mergeCfg->color.emplace();
         colConfig.type = ColorSpecType::Enum;
         colConfig.cicp = colEnc;
       }
@@ -120,7 +117,7 @@ void split(std::string_view input, std::string_view poutputDir,
   }
 
   std::filesystem::path outputDir;
-  if (wantPixels || wantBoxes || (!configFile.empty() && configFile != "-")) {
+  if (wantPixels || wantBoxes) {
     outputDir = poutputDir;
     std::filesystem::create_directories(outputDir);
   }
@@ -199,7 +196,7 @@ void split(std::string_view input, std::string_view poutputDir,
     }
 
     // Append an element to the JSON frames[] array
-    if (!configFile.empty()) {
+    if (mergeCfg) {
       FrameConfig jsonFrameConfig;
       jsonFrameConfig.file = frameBaseName;
       if (!frameInfo.name.empty()) {
@@ -223,7 +220,7 @@ void split(std::string_view input, std::string_view poutputDir,
       if (layerInfo.have_crop && (layerInfo.crop_x0 != 0 || layerInfo.crop_y0 != 0)) {
         jsonFrameConfig.offset.emplace(layerInfo.crop_x0, layerInfo.crop_y0);
       }
-      mergeCfg.frames.push_back(std::move(jsonFrameConfig));
+      mergeCfg->frames.push_back(std::move(jsonFrameConfig));
     }
 
     // Decode this frame's pixels and encode to a new file
@@ -316,14 +313,17 @@ void split(std::string_view input, std::string_view poutputDir,
       for (const auto& thisEcReq : ecRequests) {
         const jxlazy::ExtraChannelInfo& thisEcInfo = decEcInfo[thisEcReq.channelIndex];
         JXLTK_TRACE("Frame %zu: Setting extra channel %zu info (%s)(%s)", frameIndex,
-                    thisEcReq.channelIndex, channelTypeName(thisEcInfo.info.type), thisEcInfo.name.c_str());
-        if (JxlEncoderSetExtraChannelInfo(enc, thisEcReq.channelIndex, &thisEcInfo.info) != JXL_ENC_SUCCESS) {
+                    thisEcReq.channelIndex, channelTypeName(thisEcInfo.info.type),
+                    thisEcInfo.name.c_str());
+        if (JxlEncoderSetExtraChannelInfo(enc, thisEcReq.channelIndex, &thisEcInfo.info)
+            != JXL_ENC_SUCCESS) {
           throw JxltkError("%s: Failed to set extra channel info for frame %zu, "
                            "channel %zu", __func__, frameIndex, thisEcReq.channelIndex);
         }
         if (!thisEcInfo.name.empty() &&
-            JxlEncoderSetExtraChannelName(enc, thisEcReq.channelIndex, thisEcInfo.name.c_str(),
-                                          thisEcInfo.name.size()) != JXL_ENC_SUCCESS) {
+            JxlEncoderSetExtraChannelName(enc, thisEcReq.channelIndex,
+                                          thisEcInfo.name.c_str(), thisEcInfo.name.size())
+                != JXL_ENC_SUCCESS) {
           throw JxltkError("%s: Failed to set extra channel info for frame %zu, "
                            "channel %zu", __func__, frameIndex, thisEcReq.channelIndex);
         }
@@ -351,7 +351,8 @@ void split(std::string_view input, std::string_view poutputDir,
         throw JxltkError("%s: Failed to add frame %zu", __func__, frameIndex);
       }
       for (const auto& thisEcReq : ecRequests) {
-        JXLTK_TRACE("Frame %zu: Adding extra channel %zu", frameIndex, thisEcReq.channelIndex);
+        JXLTK_TRACE("Frame %zu: Adding extra channel %zu", frameIndex,
+                    thisEcReq.channelIndex);
         if (JxlEncoderSetExtraChannelBuffer(settings, &thisEcReq.format, thisEcReq.target,
                                             thisEcReq.capacity, thisEcReq.channelIndex)
             != JXL_ENC_SUCCESS) {
@@ -379,10 +380,10 @@ void split(std::string_view input, std::string_view poutputDir,
   }
 
   // Read jxll box if applicable
-  if (decInfo.have_container && !configFile.empty()) {
+  if (decInfo.have_container && mergeCfg) {
     int codestreamLevel = dec.getCodestreamLevel();
     if (full || codestreamLevel != -1) {
-      mergeCfg.codestreamLevel = codestreamLevel;
+      mergeCfg->codestreamLevel = codestreamLevel;
     }
   }
 
@@ -412,12 +413,12 @@ void split(std::string_view input, std::string_view poutputDir,
       }
 
       // Append an element to the JSON boxes[] array
-      if (!configFile.empty()) {
+      if (mergeCfg) {
         BoxConfig jsonBoxConfig;
         memcpy(jsonBoxConfig.type, boxType, sizeof jsonBoxConfig.type);
         jsonBoxConfig.file = boxBaseName;
         jsonBoxConfig.compress = boxInfo.compressed;
-        mergeCfg.boxes.push_back(std::move(jsonBoxConfig));
+        mergeCfg->boxes.push_back(std::move(jsonBoxConfig));
       }
 
       // Output this box's content to a file
@@ -428,19 +429,6 @@ void split(std::string_view input, std::string_view poutputDir,
       outFile.write(reinterpret_cast<const char*>(boxContent.data()),
                     boxContent.size());
       JXLTK_INFO("Wrote %s.", shellQuote(filePath, true).c_str());
-    }
-  }
-
-  if (!configFile.empty()) {
-    if (configFile == "-") {
-      mergeCfg.toJson(std::cout, full);
-    } else {
-      std::string filePath = (outputDir / configFile).string();
-      std::ofstream jsonFile(filePath, std::ios::binary);
-      if (!jsonFile) {
-        throw JxltkError(std::string("Failed to open ") + shellQuote(filePath) + " for writing");
-      }
-      mergeCfg.toJson(jsonFile, full);
     }
   }
 }

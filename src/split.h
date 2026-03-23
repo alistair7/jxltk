@@ -36,9 +36,8 @@ namespace jxltk {
  * pixels.
  * @param[in] wantBoxes Enable (true; default) or disable (false) extracting box
  * content.
- * @param[in] configFile Path where the merge config will be written.  May be
- * `""` to suppress writing it, or `"-"` to write it to stdout.  Otherwise
- * interpreted as a path relative to @p poutputDir.
+ * @param[out] mergeCfg Merge configuration that can be used to reassemble this file.
+ *   May be nullptr.
  * @param[in] useTicks If true, output animation timing information using ticks.
  * If false, use milliseconds (possibly rounded).
  * @param[in] full If true, the merge config is written in a more verbose way,
@@ -49,7 +48,7 @@ void split(std::string_view input, std::string_view poutputDir,
            const FrameConfig& frameConfig = {},
            const std::optional<JxlDataType>& forceDataType = {},
            bool wantPixels = true, bool wantBoxes = true,
-           std::string_view configFile = "merge.json",
+           MergeConfig* mergeCfg = nullptr,
            bool useTicks = true, bool full = false);
 
 }  // namespace jxltk

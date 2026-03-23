@@ -135,7 +135,7 @@ class Pixmap {
    * Change the pixel format used to decode pixels.
    * This can only be called if pixels have not yet been decoded.
    */
-  void setPixelFormat();
+  void setPixelFormat(const JxlPixelFormat& format);
 
   uint32_t getXsize() const;
   uint32_t getYsize() const;

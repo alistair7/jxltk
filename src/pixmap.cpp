@@ -404,6 +404,13 @@ const JxlPixelFormat& Pixmap::getPixelFormat() const {
   return pixelFormat_;
 }
 
+void Pixmap::setPixelFormat(const JxlPixelFormat &format) {
+  if (pixels_) {
+    throw jxltk::JxltkError("Too late to set pixel format");
+  }
+  pixelFormat_ = format;
+}
+
 uint32_t Pixmap::getXsize() const {
   if (xsize_ > 0) {
     return xsize_;

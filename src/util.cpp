@@ -14,6 +14,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <jxl/types.h>
@@ -35,19 +36,21 @@ using std::vector;
 
 namespace jxltk {
 
-vector<std::string_view> splitString(const string& str, char at, int maxsplit /*=0*/,
+vector<std::string_view> splitString(std::string_view str, char at, int maxsplit/*=-1*/,
                                      bool keepEmpty /*=false*/) {
   vector<std::string_view> parts;
   size_t start = 0;
-  size_t end;
-  while ((end = str.find(at, start)) != string::npos &&
-         (maxsplit < 0 || maxsplit-- > 0)) {
-    if (keepEmpty || end - start > 0)
-      parts.emplace_back(str.data() + start, end - start);
-    start = end + 1;
+  size_t sep;
+  while (maxsplit != 0 && (sep = str.find(at, start)) != string::npos) {
+    if (keepEmpty || sep != start) {
+      parts.emplace_back(str.data() + start, sep - start);
+      --maxsplit;
+    }
+    start = sep + 1;
   }
-  if (keepEmpty || start != str.size() - 1)
-    parts.emplace_back(str.data() + start, end - start);
+  if (keepEmpty || start != str.size()) {
+    parts.emplace_back(str.data() + start, str.size() - start);
+  }
 
   return parts;
 }

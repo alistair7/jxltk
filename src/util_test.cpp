@@ -9,6 +9,45 @@
 
 #include "util.h"
 
+TEST(SplitString, Works) {
+  struct {
+    const char* input;
+    int maxsplit;
+    bool keepEmpty;
+    std::vector<const char*> expect;
+  } tests[] = {
+    { "", -1, false, {} },
+    { "", 0, false, {} },
+    { "", -1, true, {""} },
+    { "", 0, true, {""} },
+    { "a", -1, true, {"a"} },
+    { ",", -1, false, {} },
+    { ",", -1, true, {"", ""} },
+    { ",,", -1, false, {} },
+    { ",,", -1, true, {"", "", ""} },
+    { "a,", -1, true, {"a", ""} },
+    { "a,", -1, false, {"a"} },
+    { ",a", -1, true, {"", "a"} },
+    { ",a", -1, false, {"a"} },
+    { "abc,def,ghi,", 0, false, {"abc,def,ghi,"} },
+    { "abc,def,ghi,", 1, false, {"abc", "def,ghi,"} },
+    { "abc,def,ghi,", 2, false, {"abc", "def", "ghi,"} },
+    { "abc,def,ghi,", 3, false, {"abc", "def", "ghi"} },
+    { "abc,def,ghi,", 3, true, {"abc", "def", "ghi", ""} },
+    { "abc,def,ghi,", 4, false, {"abc", "def", "ghi"} },
+    { "abc,def,ghi,", 5, true, {"abc", "def", "ghi", ""} },
+  };
+
+  for (const auto& test : tests) {
+    std::vector<std::string_view> result =
+        jxltk::splitString(test.input, ',', test.maxsplit, test.keepEmpty);
+    ASSERT_EQ(result.size(), test.expect.size());
+    for (size_t i = 0; i < result.size(); ++i) {
+      EXPECT_EQ(result[i], std::string_view(test.expect[i])) << (&test - tests);
+    }
+  }
+}
+
 TEST(FindCropRegion, ReturnsEmptyRegionForFullyTransparent) {
   uint8_t samples[16] = {0};
   jxltk::CropRegion cropRegion = { 1, 2, 3, 4 };

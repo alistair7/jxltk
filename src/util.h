@@ -55,9 +55,19 @@ int dataTypeRank(JxlDataType t);
 
 /**
  * Split a string at each occurance of the specified char.
+ *
+ * The split char is not included in the results.
+ *
+ * @param[in] str String to split.
+ * @param[in] at Single char to split at.
+ * @param[in] maxsplit Maximum number of splits to make (never return more than
+ *   @p maxsplit + 1 tokens), or -1 for no limit. If we reach the split limit, the final
+ *   returned token will include all remaining characters.
+ * @param[in] keepEmpty Whether to include empty strings in the result.
+ * @return A vector of string_views referring to sections of @p str.
  */
-std::vector<std::string_view> splitString(const std::string& str, char at,
-                                    int maxsplit = 0, bool keepEmpty = false);
+std::vector<std::string_view> splitString(std::string_view str, char at,
+                                          int maxsplit = -1, bool keepEmpty = false);
 
 /**
  * Load bytes from a stream into the specified vector.

@@ -343,6 +343,12 @@ CmdlineOpts parseArgs(int argc, char** argv) {
 
       case 'v':
         ++verbosity;
+        jxltkLogThreshold = (verbosity <= 1) ? LogLevel::Error :
+                            (verbosity == 2) ? LogLevel::Warning :
+                            (verbosity == 3) ? LogLevel::Notice :
+                            (verbosity == 4) ? LogLevel::Info :
+                            (verbosity == 5) ? LogLevel::Debug :
+                            LogLevel::Trace;
         continue;
 
       case 'q':
@@ -528,12 +534,6 @@ CmdlineOpts parseArgs(int argc, char** argv) {
 
   }
 
-  jxltkLogThreshold = (verbosity <= 1) ? LogLevel::Error :
-                      (verbosity == 2) ? LogLevel::Warning :
-                      (verbosity == 3) ? LogLevel::Notice :
-                      (verbosity == 4) ? LogLevel::Info :
-                      (verbosity == 5) ? LogLevel::Debug :
-                      LogLevel::Trace;
   JXLTK_DEBUG("Log level: %s",
               (jxltkLogThreshold == LogLevel::Debug ? "Debug" : "Trace"));
 

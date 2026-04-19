@@ -171,7 +171,8 @@ std::optional<std::pair<uint32_t,uint32_t> > parseRational(const char* s) {
   if (*endptr != '\0' || tpsDenominator == 0) {
     return {};
   }
-  return {{tpsNumerator, tpsDenominator}};
+  return {{static_cast<uint32_t>(tpsNumerator),
+           static_cast<uint32_t>(tpsDenominator)}};
 }
 
 int removeInterleavedChannel(void* pixels, uint32_t xsize, uint32_t ysize,
@@ -221,7 +222,7 @@ int removeInterleavedChannel(void* pixels, uint32_t xsize, uint32_t ysize,
  *
  * TODO: learn to float.
  */
-constexpr float getEpsilon(uint32_t bits) {
+float getEpsilon(uint32_t bits) {
   return static_cast<float>(1.0 / (2 * (pow(2, bits) - 1)));
 }
 
@@ -612,17 +613,17 @@ void TempFile::open() {
     std::filesystem::path tempPath = tempdir / basename;
 #if __cplusplus < 202302L
     if (std::filesystem::exists(tempPath)) {
-      JXLTK_TRACE("Temp file exists: %s.", shellQuote(tempPath.c_str(), true).c_str());
+      JXLTK_TRACE("Temp file exists: %s.", shellQuote(tempPath.string(), true).c_str());
       continue;
     }
 #endif
     file.open(tempPath, mode);
     if (file.is_open()) {
-      path = tempPath;
+      path = tempPath.string();
       JXLTK_DEBUG("Created temporary file %s.", shellQuote(path).c_str());
       return;
     }
-    JXLTK_TRACE("Failed to open %s.", shellQuote(tempPath.c_str(), true).c_str());
+    JXLTK_TRACE("Failed to open %s.", shellQuote(tempPath.string(), true).c_str());
   }
   throw JxltkError("Failed to create temporary file");
 }

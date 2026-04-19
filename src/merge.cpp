@@ -291,7 +291,7 @@ void merge(const MergeConfig& mergeCfg, std::ostream& fout, size_t numThreads,
       }
       if (bi.alpha_bits > 0 && !unPremultiplyAlpha) {
         if (alphaPremultipliedSetting) {
-          if (bi.alpha_premultiplied != *alphaPremultipliedSetting) {
+          if (static_cast<bool>(bi.alpha_premultiplied) != *alphaPremultipliedSetting) {
             throw JxltkError("Can't mix straight alpha with premultiplied alpha");
           }
         } else {

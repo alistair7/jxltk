@@ -28,7 +28,7 @@ using std::vector;
 
 namespace jxltk {
 
-constexpr FrameConfig kJxltkDefaultFrameConfig = { .distance = 0 };
+constexpr FrameConfig kJxltkDefaultFrameConfig = { .distance = 0.f };
 
 namespace {
 
@@ -213,8 +213,11 @@ void split(std::string_view input, std::string_view poutputDir,
         if (useTicks) {
           jsonFrameConfig.durationTicks = frameInfo.header.duration;
         } else {
-          jsonFrameConfig.durationMs = std::roundf(
-              1000.f * (static_cast<float>(frameInfo.header.duration) / tps));
+          jsonFrameConfig.durationMs = static_cast<uint32_t>(
+            std::roundf(
+              1000.f * (static_cast<float>(frameInfo.header.duration) / tps)
+            )
+          );
         }
       }
       if (layerInfo.have_crop && (layerInfo.crop_x0 != 0 || layerInfo.crop_y0 != 0)) {

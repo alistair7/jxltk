@@ -1,0 +1,31 @@
+﻿{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "msvc_x64_rel",
+      "displayName": "MSVC with vcpkg, Release",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "BUILD_TESTING": true,
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/extern/vcpkg-overlays"
+      }
+    },
+    {
+      "name": "msvc_x64_dbg",
+      "displayName": "MSVC with vcpkg, Debug",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "BUILD_TESTING": true,
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/extern/vcpkg-overlays"
+      }
+    }
+  ]
+}

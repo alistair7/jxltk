@@ -39,7 +39,7 @@ On a Debian-like system, the following commands should work.  Other Unixes will 
 similar.
 
 ```bash
-sudo apt install build-essential cmake libjxl-dev libgtest-dev
+sudo apt-get install build-essential cmake libjxl-dev libgtest-dev
 git clone https://github.com/alistair7/jxltk
 mkdir jxltk-build
 cd jxltk-build
@@ -51,22 +51,74 @@ sudo cmake --install .
 ```
 
 To build and run unit tests, add `-DBUILD_TESTING=ON` to the cmake command, and run
-the resulting `jxltk_test`.
+the resulting `jxltk_test`.  There is currently no `ctest` integration.
 
 ### Building on Windows
-Left as an excercise :)
+`jxltk` can be built on Windows through Visual Studio 2022, using libjxl from
+`vcpkg`.  Building for other versions should only require some very simple
+tweaks to the instructions.  Using other build systems such as mingw/cygwin
+is left as an exercise :).
 
-It should work fine, but I haven't tried it yet.  I'll update this section when I have.
+1. Clone the jxltk repository:
 
-My suggestion would be:
+```
+git clone https://github.com/alistair7/jxltk
+```
 
-- Install libjxl via [vcpkg](https://learn.microsoft.com/en-us/vcpkg/).
-- Run cmake on jxltk with
-  `-DCMAKE_TOOLCHAIN_FILE=<vcpkg-root>/scripts/buildsystems/vcpkg.cmake`
+2. Set up vcpkg by following these instructions:
+   https://learn.microsoft.com/en-us/vcpkg/
 
-See https://learn.microsoft.com/en-us/vcpkg/users/buildsystems/cmake-integration
+tl;dr:
 
-Good luck!
+```
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg; .\bootstrap-vcpkg.bat
+```
+
+3. Install libjxl via vcpkg:
+
+```
+.\vcpkg install libjxl
+```
+
+4. Create a file named `CMakeUserPresets.json` in the root of the jxltk source,
+   and add the following content:
+
+```json
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "default",
+      "inherits": "msvc_x64_rel",
+	  "generator": "Visual Studio 17 2022",
+      "environment": {
+        "VCPKG_ROOT": "C:\\path\\to\\your\\vcpkg"
+      }
+    }
+  ]
+}
+```
+
+- Replace `"C:\\path\\to\\your\\vcpkg"` with the path where you cloned vcpkg.
+- If you're using a different version of Visual Studio, replace `"Visual Studio 17 2022"`
+  with the appropriate version.
+- If you want a debug build, replace `"msvc_x64_rel"` with `"msvc_x64_dbg"`.
+
+5. In Visual Studio, use `File > Open > CMake...` to open jxltk's CMakeLists.txt.
+   Visual Studio must have the CMake development component enabled for this to be
+   available.
+
+6. In the Configuration dropdown, select the name of the configuration you defined
+   in CMakeUserPresets.json - this will be called "default" if you copied the example
+   above.
+
+7. Visual Studio should run cmake automatically.  Check the Output window for any errors.
+
+8. Select Build > Build All.  This should produce jxltk.exe and its dependency DLLs
+   under build\default.  (The subfolder is always called "Debug", regardless of the
+   configuration - I can't be bothered to investigate why.)
+
 
 ## Command Line ##
 All commands broadly look like this:
@@ -139,7 +191,7 @@ original(-ish) multi-frame JXL.
 
 Options for split mode:
 
-^ See also the common [Split, Merge, and Gen Options](#split-merge-and-gen-options).
+^ See also the [common encoding options](#common-encoding-options).
 
 ```
   -c, --coalesce
@@ -234,7 +286,7 @@ merge.json.
 
 Options for merge mode:
 
-^ See also the common [Split, Merge, and Gen Options](#split-merge-and-gen-options).
+^ See also the [common encoding options](#common-encoding-options).
 
 ```
   -M FILE, --merge-config=FILE
@@ -312,7 +364,7 @@ within `frameDefaults`.
 
 Options for gen mode:
 
-^ See also the common [Split, Merge, and Gen Options](#split-merge-and-gen-options).
+^ See also the [common encoding options](#common-encoding-options).
 
 ```
   --compress-boxes=0|1
@@ -362,14 +414,15 @@ Subtract input2.jxl from input1.jxl and write the result to output.jxl:
 ```
 
 All samples in all channels of all frames are added/subtracted.  Inputs must have matching
-dimensions and channel configurations.
+dimensions and channel configurations.  Offsets and other metadata doesn't have to match -
+the output will inherit the properties of the first input file.
 
 These operations can easily produce samples outside of \[0,1\] - these will be stored
 correctly, but most viewers will clamp them.
 
 
 ### `compare` Mode
-Check whether two JXLs contain the same pixel values across all frames and  channels,
+Check whether two JXLs contain the same pixel values across all frames and channels,
 ignoring color profiles and frame durations. Each channel is compared using the higher of
 the two bit depths. The exit status will be 0 if all the pixels match.
 
